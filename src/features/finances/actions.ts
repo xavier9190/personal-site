@@ -13,13 +13,17 @@ export interface ActionResult {
   error?: string;
 }
 
-export async function createTransactionAction(raw: {
+export interface TransactionFormPayload {
   type: 'INCOME' | 'EXPENSE';
   description: string;
   category: string;
   amountBRL: string;
   occurredAt: string;
-}): Promise<ActionResult> {
+}
+
+export async function createTransactionAction(
+  raw: TransactionFormPayload,
+): Promise<ActionResult> {
   try {
     const amountCents = parseBRLToCents(raw.amountBRL);
     const service = new FinancesService();
@@ -45,13 +49,7 @@ export async function createTransactionAction(raw: {
 
 export async function updateTransactionAction(
   id: string,
-  raw: {
-    type: 'INCOME' | 'EXPENSE';
-    description: string;
-    category: string;
-    amountBRL: string;
-    occurredAt: string;
-  },
+  raw: TransactionFormPayload,
 ): Promise<ActionResult> {
   try {
     const amountCents = parseBRLToCents(raw.amountBRL);

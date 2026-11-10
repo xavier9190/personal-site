@@ -5,25 +5,17 @@ import { SketchModal } from '@/components/sketch/SketchModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { formatCentsToBRL } from '@/lib/currency';
 import { toRecifeDateString } from '@/lib/dates';
+import type { TransactionRecord } from '../service';
 import {
   createTransactionAction,
   deleteTransactionAction,
   updateTransactionAction,
 } from '../actions';
 
-export interface EditableTransaction {
-  id: string;
-  type: 'INCOME' | 'EXPENSE';
-  description: string;
-  category: string;
-  amountCents: number;
-  occurredAt: string;
-}
-
 export interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTransaction?: EditableTransaction | null;
+  initialTransaction?: TransactionRecord | null;
 }
 
 export function TransactionModal({
@@ -70,14 +62,7 @@ export function TransactionModal({
     setSaving(true);
     setError(null);
 
-    const payload = {
-      type,
-      description,
-      category,
-      amountBRL,
-      occurredAt,
-    };
-
+    const payload = { type, description, category, amountBRL, occurredAt };
     const result = initialTransaction
       ? await updateTransactionAction(initialTransaction.id, payload)
       : await createTransactionAction(payload);
@@ -87,7 +72,6 @@ export function TransactionModal({
       setError(result.error ?? 'ERRO AO SALVAR TRANSAÇÃO.');
       return;
     }
-
     onClose();
   }
 
@@ -102,6 +86,9 @@ export function TransactionModal({
     }
     onClose();
   }
+
+  const inputClass =
+    'w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none';
 
   return (
     <SketchModal
@@ -137,7 +124,7 @@ export function TransactionModal({
               type="date"
               value={occurredAt}
               onChange={(e) => setOccurredAt(e.target.value)}
-              className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none"
+              className={inputClass}
             />
           </div>
 
@@ -152,7 +139,7 @@ export function TransactionModal({
               placeholder="EX: 45,90"
               value={amountBRL}
               onChange={(e) => setAmountBRL(e.target.value)}
-              className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none"
+              className={inputClass}
             />
           </div>
         </div>
@@ -167,7 +154,7 @@ export function TransactionModal({
             placeholder="EX: ALMOÇO, SALÁRIO, UBER..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none"
+            className={inputClass}
           />
         </div>
 
@@ -181,24 +168,19 @@ export function TransactionModal({
             placeholder="EX: ALIMENTAÇÃO, TRANSPORTE, TRABALHO..."
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none"
+            className={inputClass}
           />
         </div>
 
         {error && (
-          <p className="rounded border-2 border-[#ffc9c9] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5]">
+          <p className="rounded border-2 border-dashed border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5]">
             {error}
           </p>
         )}
 
         <div className="flex items-center justify-between gap-3 pt-2">
           {isEditing ? (
-            <SketchButton
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={handleDelete}
-            >
+            <SketchButton type="button" variant="outline" disabled={saving} onClick={handleDelete}>
               EXCLUIR
             </SketchButton>
           ) : (
@@ -206,12 +188,7 @@ export function TransactionModal({
           )}
 
           <div className="flex items-center gap-2">
-            <SketchButton
-              type="button"
-              variant="ghost"
-              disabled={saving}
-              onClick={onClose}
-            >
+            <SketchButton type="button" variant="ghost" disabled={saving} onClick={onClose}>
               CANCELAR
             </SketchButton>
             <SketchButton type="submit" variant="filled" disabled={saving}>

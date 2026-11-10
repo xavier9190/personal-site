@@ -1,47 +1,23 @@
 import crypto from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
 import type { AppDatabase } from '@/db';
 import { getDb } from '@/db';
 import { assertPureDate, toRecifeDateString } from '@/lib/dates';
-import { sumCents, type Cents } from '@/lib/currency';
+import { sumCents } from '@/lib/currency';
 import * as schema from './schema';
+import {
+  createTransactionSchema,
+  updateTransactionSchema,
+  type BalanceSummary,
+  type CreateTransactionInput,
+  type FinancePeriod,
+  type FinancesDashboardView,
+  type TransactionFilters,
+  type TransactionRecord,
+  type UpdateTransactionInput,
+} from './types';
 
-export type FinancePeriod = 'THIS_MONTH' | 'LAST_MONTH' | 'NEXT_MONTH' | 'ALL';
-
-export const createTransactionSchema = z.object({
-  type: z.enum(['INCOME', 'EXPENSE']),
-  description: z.string().trim().min(1, 'DESCRIÇÃO OBRIGATÓRIA'),
-  category: z.string().trim().min(1, 'CATEGORIA OBRIGATÓRIA'),
-  amountCents: z.number().int().positive('VALOR DEVE SER MAIOR QUE ZERO'),
-  occurredAt: z.string().refine((val) => {
-    try {
-      assertPureDate(val);
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'DATA INVÁLIDA (USE AAAA-MM-DD)'),
-  status: z.enum(['PAID', 'PENDING']).default('PAID'),
-});
-
-export const updateTransactionSchema = createTransactionSchema.partial();
-
-export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
-export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;
-
-export interface BalanceSummary {
-  incomeCents: Cents;
-  expenseCents: Cents;
-  balanceCents: Cents;
-}
-
-export interface TransactionFilters {
-  period?: FinancePeriod;
-  referenceDate?: string;
-  date?: string;
-  category?: string;
-}
+export * from './types';
 
 const DEFAULT_PREF_ID = 'default';
 
@@ -73,9 +49,9 @@ function getYearMonthPrefix(period: FinancePeriod, referenceDate?: string): stri
 export class FinancesService {
   constructor(private readonly db: AppDatabase = getDb()) {}
 
-  createTransaction(input: CreateTransactionInput) {
+  createTransaction(input: CreateTransactionInput): TransactionRecord {
     const parsed = createTransactionSchema.parse(input);
-    const record = {
+    const record: TransactionRecord = {
       id: crypto.randomUUID(),
       type: parsed.type,
       description: parsed.description.toUpperCase(),
@@ -91,7 +67,7 @@ export class FinancesService {
     return record;
   }
 
-  updateTransaction(id: string, input: UpdateTransactionInput) {
+  updateTransaction(id: string, input: UpdateTransactionInput): TransactionRecord {
     const existing = this.db
       .select()
       .from(schema.transactions)
@@ -103,32 +79,25 @@ export class FinancesService {
     }
 
     const parsed = updateTransactionSchema.parse(input);
-    const updated = {
+    const updated: TransactionRecord = {
       ...existing,
       type: parsed.type ?? existing.type,
-      description: parsed.description
-        ? parsed.description.toUpperCase()
-        : existing.description,
+      description: parsed.description ? parsed.description.toUpperCase() : existing.description,
       category: parsed.category ? parsed.category.toUpperCase() : existing.category,
       amountCents: parsed.amountCents ?? existing.amountCents,
       occurredAt: parsed.occurredAt ?? existing.occurredAt,
       status: parsed.status ?? existing.status,
     };
 
-    this.db
-      .update(schema.transactions)
-      .set(updated)
-      .where(eq(schema.transactions.id, id))
-      .run();
-
+    this.db.update(schema.transactions).set(updated).where(eq(schema.transactions.id, id)).run();
     return updated;
   }
 
-  deleteTransaction(id: string) {
+  deleteTransaction(id: string): void {
     this.db.delete(schema.transactions).where(eq(schema.transactions.id, id)).run();
   }
 
-  listTransactions(filters?: TransactionFilters) {
+  listTransactions(filters?: TransactionFilters): TransactionRecord[] {
     const all = this.db.select().from(schema.transactions).all();
     const period = filters?.period ?? 'ALL';
     const prefix = getYearMonthPrefix(period, filters?.referenceDate);
@@ -145,16 +114,28 @@ export class FinancesService {
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
   }
 
-  listDistinctCategories(): string[] {
-    const all = this.db.select().from(schema.transactions).all();
-    return Array.from(new Set(all.map((t) => t.category.toUpperCase()))).sort();
+  listInstallmentPlans() {
+    return this.db.select().from(schema.installmentPlans).all();
   }
 
-  listDistinctDates(period: FinancePeriod = 'ALL', referenceDate?: string): string[] {
-    const txs = this.listTransactions({ period, referenceDate });
-    return Array.from(new Set(txs.map((t) => t.occurredAt))).sort((a, b) =>
-      b.localeCompare(a),
+  listPayableBills() {
+    return this.db.select().from(schema.payableBills).all();
+  }
+
+  getBalanceSummary(params?: { period?: FinancePeriod; referenceDate?: string }): BalanceSummary {
+    const periodTxs = this.listTransactions({
+      period: params?.period ?? 'THIS_MONTH',
+      referenceDate: params?.referenceDate,
+    }).filter((tx) => tx.status === 'PAID');
+
+    const incomeCents = sumCents(
+      periodTxs.filter((t) => t.type === 'INCOME').map((t) => t.amountCents),
     );
+    const expenseCents = sumCents(
+      periodTxs.filter((t) => t.type === 'EXPENSE').map((t) => t.amountCents),
+    );
+
+    return { incomeCents, expenseCents, balanceCents: incomeCents - expenseCents };
   }
 
   getHideBalance(): boolean {
@@ -167,14 +148,13 @@ export class FinancesService {
   }
 
   toggleHideBalance(): boolean {
-    const current = this.getHideBalance();
-    const nextValue = !current;
     const existing = this.db
       .select()
       .from(schema.financePreferences)
       .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID))
       .get();
 
+    const nextValue = !(existing?.hideBalance ?? false);
     if (!existing) {
       this.db
         .insert(schema.financePreferences)
@@ -187,43 +167,28 @@ export class FinancesService {
         .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID))
         .run();
     }
-
     return nextValue;
   }
 
-  listInstallmentPlans() {
-    return this.db.select().from(schema.installmentPlans).all();
-  }
-
-  listPayableBills() {
-    return this.db.select().from(schema.payableBills).all();
-  }
-
-  getBalanceSummary(params?: {
-    period?: FinancePeriod;
-    referenceDate?: string;
-  }): BalanceSummary {
-    const period = params?.period ?? 'THIS_MONTH';
-    const prefix = getYearMonthPrefix(period, params?.referenceDate);
-    const all = this.db.select().from(schema.transactions).all();
-
-    const matching = all.filter((tx) => {
-      if (tx.status !== 'PAID') return false;
-      if (prefix && !tx.occurredAt.startsWith(prefix)) return false;
-      return true;
-    });
-
-    const incomeCents = sumCents(
-      matching.filter((t) => t.type === 'INCOME').map((t) => t.amountCents),
+  getDashboardView(filters?: TransactionFilters): FinancesDashboardView {
+    const period = filters?.period ?? 'THIS_MONTH';
+    const periodTxs = this.listTransactions({ period, referenceDate: filters?.referenceDate });
+    const distinctDates = Array.from(new Set(periodTxs.map((t) => t.occurredAt))).sort((a, b) =>
+      b.localeCompare(a),
     );
-    const expenseCents = sumCents(
-      matching.filter((t) => t.type === 'EXPENSE').map((t) => t.amountCents),
-    );
+    const distinctCategories = Array.from(
+      new Set(periodTxs.map((t) => t.category.toUpperCase())),
+    ).sort();
 
     return {
-      incomeCents,
-      expenseCents,
-      balanceCents: incomeCents - expenseCents,
+      period,
+      dateFilter: filters?.date ?? '',
+      categoryFilter: filters?.category ?? '',
+      transactions: this.listTransactions({ ...filters, period }),
+      distinctDates,
+      distinctCategories,
+      summary: this.getBalanceSummary({ period, referenceDate: filters?.referenceDate }),
+      hideBalance: this.getHideBalance(),
     };
   }
 }

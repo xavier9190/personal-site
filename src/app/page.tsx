@@ -1,9 +1,9 @@
-import { Mic, Paperclip } from 'lucide-react';
+import { EyeOff, Mic, Paperclip } from 'lucide-react';
 import { ChatService } from '@/features/chat/service';
 import { CalendarService } from '@/features/calendar/service';
 import { FinancesService } from '@/features/finances/service';
-import { BalanceQuickRow } from '@/features/finances/components/BalanceQuickRow';
 import { EmptyState } from '@/components/sketch/EmptyState';
+import { formatCentsToBRL } from '@/lib/currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +15,6 @@ export default function ChatPage() {
   const messages = chatService.listMessages();
   const events = calendarService.listEvents();
   const bills = financesService.listPayableBills();
-  const summary = financesService.getBalanceSummary({ period: 'THIS_MONTH' });
-  const hideBalance = financesService.getHideBalance();
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-1 flex-col lg:h-full lg:min-h-0 lg:flex-row">
@@ -91,10 +89,16 @@ export default function ChatPage() {
             FINANÇAS
           </h2>
 
-          <BalanceQuickRow
-            balanceCents={summary.balanceCents}
-            initialHideBalance={hideBalance}
-          />
+          <div className="mb-4 flex items-center justify-between text-sm">
+            <span>SALDO: {formatCentsToBRL(0)}</span>
+            <button
+              type="button"
+              aria-label="OCULTAR OU EXIBIR SALDO"
+              className="text-[#f1f3f5] hover:opacity-80"
+            >
+              <EyeOff className="h-4 w-4" />
+            </button>
+          </div>
 
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-1">
