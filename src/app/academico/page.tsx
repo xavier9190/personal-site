@@ -9,13 +9,13 @@ export default function AcademicoPage() {
   const { inProgress, completed } = academicService.listProjectsByStatus();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
       <PageHeader
         moduleId="academic"
         subtitle="PROJETOS EM ANDAMENTO, MARCOS IMPORTANTES E ENTREGAS"
       />
 
-      <section className="space-y-3">
+      <section className="flex flex-1 flex-col space-y-3">
         <h2 className="text-base tracking-wider">PROJETOS EM ANDAMENTO</h2>
         {inProgress.length === 0 ? (
           <EmptyState
@@ -26,7 +26,7 @@ export default function AcademicoPage() {
         ) : null}
       </section>
 
-      <section className="space-y-3 opacity-80">
+      <section className="flex flex-1 flex-col space-y-3 border-t-2 border-[#f1f3f5] pt-4 opacity-80">
         <h2 className="text-base tracking-wider text-[#868e96]">
           PROJETOS JÁ ACABADOS
         </h2>

@@ -28,10 +28,10 @@ export function MobileBottomNav() {
             href={mod.href}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition-all',
+              'relative flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-md border px-2 py-1 text-[10px] text-[#f1f3f5] uppercase tracking-wider transition-all',
               isActive
-                ? 'border-[#f1f3f5] bg-[#f1f3f5] text-[#121212]'
-                : 'border-transparent bg-[#121212] text-[#f1f3f5] hover:border-[#f1f3f5]',
+                ? 'border-[#f1f3f5] bg-[#121212]'
+                : 'border-transparent bg-[#121212] hover:border-[#f1f3f5]/40',
             )}
           >
             <Icon className="h-4 w-4" />

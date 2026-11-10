@@ -31,9 +31,9 @@ export function PageHeader({
   const showAdd = mod ? mod.showAddButton : false;
 
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#f1f3f5] pb-4">
+    <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
+        <h1 className="inline-block border-b-2 border-[#f1f3f5] pb-1 text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
           {displayTitle}
         </h1>
         {subtitle && (

@@ -9,13 +9,13 @@ export default function ComprasPage() {
   const { wishlist, inTransit } = shoppingService.listItemsBySection();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
       <PageHeader
         moduleId="shopping"
         subtitle="QUERO COMPRAR (WISHLIST) E JÁ COMPREI (A CAMINHO)"
       />
 
-      <section className="space-y-3">
+      <section className="flex flex-1 flex-col space-y-3">
         <h2 className="text-base tracking-wider">QUERO COMPRAR (WISHLIST)</h2>
         {wishlist.length === 0 ? (
           <EmptyState
@@ -26,7 +26,7 @@ export default function ComprasPage() {
         ) : null}
       </section>
 
-      <section className="space-y-3">
+      <section className="flex flex-1 flex-col space-y-3 border-t-2 border-[#f1f3f5] pt-4">
         <h2 className="text-base tracking-wider">JÁ COMPREI (A CAMINHO)</h2>
         {inTransit.length === 0 ? (
           <EmptyState

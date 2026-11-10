@@ -31,9 +31,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`dark ${excalifont.variable}`}>
       <body className="min-h-screen bg-[#121212] text-[#f1f3f5] uppercase antialiased">
-        <div className="flex min-h-screen flex-col md:flex-row">
+        <div className="flex min-h-screen flex-col md:h-screen md:flex-row md:overflow-hidden">
           <AppSidebar />
-          <main className="flex-1 overflow-x-hidden p-4 pb-24 md:p-6 md:pb-6">
+          <main className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto pb-16 md:h-full md:pb-0">
             {children}
           </main>
           <MobileBottomNav />

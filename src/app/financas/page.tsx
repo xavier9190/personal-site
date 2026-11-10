@@ -12,7 +12,7 @@ export default function FinancasPage() {
   const installments = financesService.listInstallmentPlans();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
       <PageHeader
         moduleId="finances"
         subtitle="SALDO, CONTAS A PAGAR, TRANSAÇÕES E PARCELAS EM CENTAVOS"
@@ -36,8 +36,8 @@ export default function FinancasPage() {
         </SketchCard>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="space-y-3 lg:col-span-2">
+      <div className="grid flex-1 grid-cols-1 gap-6 border-t-2 border-[#f1f3f5] pt-4 lg:grid-cols-3">
+        <section className="flex flex-col space-y-3 lg:col-span-2">
           <h2 className="text-base tracking-wider">ÚLTIMAS TRANSAÇÕES</h2>
           {transactions.length === 0 ? (
             <EmptyState
@@ -48,8 +48,10 @@ export default function FinancasPage() {
           ) : null}
         </section>
 
-        <aside className="space-y-3">
-          <h2 className="text-base tracking-wider">PARCELAS A PAGAR</h2>
+        <aside className="flex flex-col space-y-3 lg:border-l-2 lg:border-[#f1f3f5] lg:pl-6">
+          <h2 className="border-b border-[#f1f3f5] pb-2 text-base tracking-wider">
+            PARCELAS A PAGAR
+          </h2>
           {installments.length === 0 ? (
             <EmptyState
               title="SEM PARCELAMENTOS ATIVOS"
