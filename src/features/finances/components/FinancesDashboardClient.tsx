@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SketchAddButton } from '@/components/sketch/SketchAddButton';
-import { EmptyState } from '@/components/sketch/EmptyState';
+import { SketchButton } from '@/components/sketch/SketchButton';
+import { cn } from '@/lib/utils';
 import type {
   FinancePeriod,
   FinancesDashboardView,
@@ -12,6 +13,10 @@ import type {
 import { FinanceKpiCards } from './FinanceKpiCards';
 import { TransactionsTable } from './TransactionsTable';
 import { TransactionModal } from './TransactionModal';
+import { InstallmentsPanel } from './InstallmentsPanel';
+import { BillsModal } from './BillsModal';
+import { CreditCardsModal } from './CreditCardsModal';
+import { InstallmentModal } from './InstallmentModal';
 
 export interface FinancesDashboardClientProps {
   view: FinancesDashboardView;
@@ -28,6 +33,10 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null);
+  const [mobileTab, setMobileTab] = useState<'TX' | 'INST'>('TX');
+  const [billsOpen, setBillsOpen] = useState(false);
+  const [cardsOpen, setCardsOpen] = useState(false);
+  const [installmentOpen, setInstallmentOpen] = useState(false);
 
   function updateQuery(next: {
     period?: FinancePeriod;
@@ -99,10 +108,29 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
 
       <FinanceKpiCards
         balanceCents={view.summary.balanceCents}
+        toPayCents={view.summary.toPayCents}
+        pendingBillsCount={view.summary.pendingBillsCount}
+        forecastCents={view.summary.forecastCents}
         initialHideBalance={view.hideBalance}
       />
 
+      <div className="grid grid-cols-2 gap-2 lg:hidden" role="tablist">
+        <SketchButton
+          variant={mobileTab === 'TX' ? 'filled' : 'outline'}
+          onClick={() => setMobileTab('TX')}
+        >
+          ÚLTIMAS TRANSAÇÕES
+        </SketchButton>
+        <SketchButton
+          variant={mobileTab === 'INST' ? 'filled' : 'outline'}
+          onClick={() => setMobileTab('INST')}
+        >
+          PARCELAS A PAGAR
+        </SketchButton>
+      </div>
+
       <div className="grid flex-1 grid-cols-1 gap-6 border-t-2 border-[#f1f3f5] pt-4 lg:grid-cols-3">
+        <div className={cn('lg:col-span-2', mobileTab === 'INST' && 'hidden lg:block')}>
         <TransactionsTable
           transactions={view.transactions}
           distinctDates={view.distinctDates}
@@ -115,17 +143,35 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
           onCreateClick={openCreateModal}
           onEditClick={openEditModal}
         />
+        </div>
 
-        <aside className="flex flex-col space-y-3 lg:border-l-2 lg:border-[#f1f3f5] lg:pl-6">
-          <h2 className="border-b border-[#f1f3f5] pb-2 text-base tracking-wider">
-            PARCELAS A PAGAR
-          </h2>
-          <EmptyState
-            title="SEM PARCELAMENTOS ATIVOS"
-            description="SUAS COMPRAS PARCELADAS APARECERÃO AQUI NO FORMATO N/TOTAL."
+        <div className={cn(mobileTab === 'TX' && 'hidden lg:block')}>
+          <InstallmentsPanel
+            plans={view.installmentPlans}
+            onOpenBills={() => setBillsOpen(true)}
+            onOpenCards={() => setCardsOpen(true)}
+            onOpenInstallment={() => setInstallmentOpen(true)}
           />
-        </aside>
+        </div>
       </div>
+
+      <BillsModal
+        isOpen={billsOpen}
+        onClose={() => setBillsOpen(false)}
+        bills={view.payableBills}
+        availableCategories={view.availableCategories}
+      />
+      <CreditCardsModal
+        isOpen={cardsOpen}
+        onClose={() => setCardsOpen(false)}
+        cards={view.creditCards}
+      />
+      <InstallmentModal
+        isOpen={installmentOpen}
+        onClose={() => setInstallmentOpen(false)}
+        cards={view.creditCards}
+        availableCategories={view.availableCategories}
+      />
 
       <TransactionModal
         isOpen={modalOpen}

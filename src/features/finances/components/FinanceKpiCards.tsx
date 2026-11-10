@@ -8,11 +8,17 @@ import { toggleHideBalanceAction } from '../actions';
 
 export interface FinanceKpiCardsProps {
   balanceCents: number;
+  toPayCents: number;
+  pendingBillsCount: number;
+  forecastCents: number;
   initialHideBalance: boolean;
 }
 
 export function FinanceKpiCards({
   balanceCents,
+  toPayCents,
+  pendingBillsCount,
+  forecastCents,
   initialHideBalance,
 }: FinanceKpiCardsProps) {
   const [hideBalance, setHideBalance] = useState<boolean>(initialHideBalance);
@@ -52,13 +58,19 @@ export function FinanceKpiCards({
 
       <SketchCard className="space-y-1">
         <span className="text-xs text-[#f1f3f5]">A PAGAR</span>
-        <p className="text-center text-xl text-[#f1f3f5]">{formatCentsToBRL(0)}</p>
-        <p className="text-center text-[10px] text-[#868e96]">FALTAM 0 CONTAS</p>
+        <p className="text-center text-xl text-[#f1f3f5]" data-testid="apagar-value">
+          {formatCentsToBRL(toPayCents)}
+        </p>
+        <p className="text-center text-[10px] text-[#868e96]">
+          {pendingBillsCount === 1 ? 'FALTA 1 CONTA' : `FALTAM ${pendingBillsCount} CONTAS`}
+        </p>
       </SketchCard>
 
       <SketchCard className="space-y-2">
         <span className="text-xs text-[#f1f3f5]">PREVISTO</span>
-        <p className="text-center text-xl text-[#f1f3f5]">{formatCentsToBRL(0)}</p>
+        <p className="text-center text-xl text-[#f1f3f5]" data-testid="previsto-value">
+          {maskBRLValue(forecastCents, hideBalance)}
+        </p>
       </SketchCard>
     </section>
   );

@@ -1,0 +1,158 @@
+'use client';
+
+import { useState } from 'react';
+import { SketchButton } from '@/components/sketch/SketchButton';
+import { SketchModal } from '@/components/sketch/SketchModal';
+import { EmptyState } from '@/components/sketch/EmptyState';
+import { formatCentsToBRL } from '@/lib/currency';
+import { toRecifeDateString } from '@/lib/dates';
+import type { PayableBillRecord } from '../service';
+import {
+  createPayableBillAction,
+  deletePayableBillAction,
+  togglePayableBillStatusAction,
+} from '../bill-actions';
+import { CategorySelector } from './CategorySelector';
+
+const BILL_TYPES = [
+  ['FIXED_RECURRING', 'CONTA FIXA'],
+  ['DEBT_TO_PERSON', 'DÍVIDA A TERCEIROS'],
+  ['SINGLE_BILL', 'CONTA AVULSA'],
+] as const;
+
+type BillType = (typeof BILL_TYPES)[number][0];
+
+const inputClass =
+  'w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none';
+
+export interface BillsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  bills: PayableBillRecord[];
+  availableCategories: readonly string[];
+}
+
+export function BillsModal({ isOpen, onClose, bills, availableCategories }: BillsModalProps) {
+  const [title, setTitle] = useState('');
+  const [billType, setBillType] = useState<BillType>('FIXED_RECURRING');
+  const [category, setCategory] = useState('MORADIA');
+  const [amountBRL, setAmountBRL] = useState('');
+  const [dueDate, setDueDate] = useState(toRecifeDateString());
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function exec(fn: () => Promise<{ ok: boolean; error?: string }>) {
+    setBusy(true);
+    const res = await fn();
+    setBusy(false);
+    setError(res.ok ? null : (res.error ?? 'ERRO'));
+    return res.ok;
+  }
+
+  async function handleCreate() {
+    const ok = await exec(() =>
+      createPayableBillAction({ title, billType, category, amountBRL, dueDate }),
+    );
+    if (ok) {
+      setTitle('');
+      setAmountBRL('');
+    }
+  }
+
+  return (
+    <SketchModal isOpen={isOpen} onClose={onClose} title="CONTAS A PAGAR">
+      <div className="space-y-4">
+        {bills.length === 0 ? (
+          <EmptyState title="SEM CONTAS NO PERÍODO" description="CADASTRE UMA CONTA ABAIXO." />
+        ) : (
+          <ul className="space-y-2">
+            {bills.map((bill) => {
+              const paid = bill.status === 'PAID';
+              return (
+                <li
+                  key={bill.id}
+                  className="flex items-center justify-between gap-2 border-2 border-[#f1f3f5] px-3 py-2 text-xs"
+                >
+                  <div className={paid ? 'text-[#868e96]' : ''}>
+                    <p>{bill.title}</p>
+                    <p className="text-[10px] text-[#868e96]">
+                      {bill.dueDate} — {formatCentsToBRL(bill.amountCents)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <SketchButton
+                      variant={paid ? 'filled' : 'outline'}
+                      className="min-h-[36px] px-2 text-[10px]"
+                      disabled={busy}
+                      onClick={() => exec(() => togglePayableBillStatusAction(bill.id, !paid))}
+                    >
+                      {paid ? 'PAGO' : 'FALTA PAGAR'}
+                    </SketchButton>
+                    <SketchButton
+                      variant="ghost"
+                      className="min-h-[36px] px-2 text-[10px]"
+                      disabled={busy}
+                      onClick={() => exec(() => deletePayableBillAction(bill.id))}
+                    >
+                      X
+                    </SketchButton>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <div className="space-y-3 border-t-2 border-[#f1f3f5] pt-3">
+          <input
+            aria-label="TÍTULO DA CONTA"
+            placeholder="TÍTULO (EX: INTERNET)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className={inputClass}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              aria-label="TIPO"
+              value={billType}
+              onChange={(e) => setBillType(e.target.value as BillType)}
+              className={inputClass}
+            >
+              {BILL_TYPES.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              aria-label="VALOR"
+              placeholder="VALOR (R$)"
+              inputMode="decimal"
+              value={amountBRL}
+              onChange={(e) => setAmountBRL(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <input
+            aria-label="VENCIMENTO"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className={inputClass}
+          />
+          <CategorySelector
+            value={category}
+            onChange={setCategory}
+            availableCategories={availableCategories}
+          />
+          {error && (
+            <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
+          )}
+          <SketchButton variant="filled" disabled={busy} onClick={handleCreate}>
+            + ADICIONAR CONTA
+          </SketchButton>
+        </div>
+      </div>
+    </SketchModal>
+  );
+}
