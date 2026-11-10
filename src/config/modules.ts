@@ -9,13 +9,15 @@ import {
 
 export type ModuleId = 'chat' | 'calendar' | 'finances' | 'academic' | 'shopping';
 
+export const STANDARD_ADD_BUTTON_LABEL = '+ ADICIONAR' as const;
+
 export interface AppModuleConfig {
   id: ModuleId;
   label: string;
   href: string;
   icon: LucideIcon;
   showAddButton: boolean;
-  addButtonLabel?: string;
+  addButtonLabel?: typeof STANDARD_ADD_BUTTON_LABEL;
 }
 
 export const MODULES: readonly AppModuleConfig[] = [
@@ -32,7 +34,7 @@ export const MODULES: readonly AppModuleConfig[] = [
     href: '/calendario',
     icon: Calendar,
     showAddButton: true,
-    addButtonLabel: '+ NOVA AGENDA',
+    addButtonLabel: STANDARD_ADD_BUTTON_LABEL,
   },
   {
     id: 'finances',
@@ -40,7 +42,7 @@ export const MODULES: readonly AppModuleConfig[] = [
     href: '/financas',
     icon: Wallet,
     showAddButton: true,
-    addButtonLabel: 'ADICIONAR +',
+    addButtonLabel: STANDARD_ADD_BUTTON_LABEL,
   },
   {
     id: 'academic',
@@ -48,7 +50,7 @@ export const MODULES: readonly AppModuleConfig[] = [
     href: '/academico',
     icon: GraduationCap,
     showAddButton: true,
-    addButtonLabel: '+ ADICIONAR',
+    addButtonLabel: STANDARD_ADD_BUTTON_LABEL,
   },
   {
     id: 'shopping',
@@ -56,7 +58,7 @@ export const MODULES: readonly AppModuleConfig[] = [
     href: '/compras',
     icon: ShoppingBag,
     showAddButton: true,
-    addButtonLabel: '+ ADICIONAR',
+    addButtonLabel: STANDARD_ADD_BUTTON_LABEL,
   },
 ] as const;
 

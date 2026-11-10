@@ -27,7 +27,7 @@ export function SketchCard({
         'rounded-md border-2 p-4 uppercase transition-colors',
         calendarColor
           ? CALENDAR_EVENT_COLOR_CLASS[calendarColor]
-          : 'border-[#f1f3f5] bg-[#1e1e1e] text-[#f1f3f5]',
+          : 'border-[#f1f3f5] bg-[#121212] text-[#f1f3f5]',
         variant === 'dashed' && 'border-dashed',
         variant === 'muted' && 'border-[#868e96] text-[#868e96] opacity-60',
         className,

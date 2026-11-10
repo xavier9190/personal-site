@@ -42,7 +42,7 @@ export function SketchModal({
     >
       <div
         className={cn(
-          'max-h-[90vh] w-full overflow-y-auto rounded-t-xl border-2 border-[#f1f3f5] bg-[#1e1e1e] p-5 text-[#f1f3f5] sketch-shadow md:max-w-lg md:rounded-md',
+          'max-h-[90vh] w-full overflow-y-auto rounded-t-xl border-2 border-[#f1f3f5] bg-[#121212] p-5 text-[#f1f3f5] sketch-shadow md:max-w-lg md:rounded-md',
           className,
         )}
         onClick={(e) => e.stopPropagation()}

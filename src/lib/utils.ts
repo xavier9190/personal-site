@@ -9,7 +9,7 @@ export type SketchAccentColor = 'green' | 'red' | 'blue' | 'yellow';
 
 export const SKETCH_COLORS = {
   bgPage: '#121212',
-  bgSurface: '#1e1e1e',
+  bgSurface: '#121212',
   strokePrimary: '#f1f3f5',
   textPrimary: '#f1f3f5',
   textMuted: '#868e96',

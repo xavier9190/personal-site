@@ -43,7 +43,7 @@ export default function FinancasPage() {
             <EmptyState
               title="NENHUMA TRANSAÇÃO REGISTRADA"
               description="ADICIONE SUA PRIMEIRA ENTRADA OU SAÍDA PARA INICIAR SEU FLUXO DE CAIXA."
-              actionLabel="ADICIONAR +"
+              actionLabel="+ ADICIONAR"
             />
           ) : null}
         </section>

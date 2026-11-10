@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { SketchCard } from './SketchCard';
-import { SketchButton } from './SketchButton';
+import { SketchAddButton } from './SketchAddButton';
 
 export interface EmptyStateProps {
   title: string;
@@ -26,9 +26,12 @@ export function EmptyState({
       <h3 className="text-base tracking-wider text-[#f1f3f5] uppercase">{title}</h3>
       <p className="max-w-md text-xs text-[#868e96] uppercase">{description}</p>
       {actionLabel && (
-        <SketchButton variant="outline" onClick={onAction} className="mt-2">
-          {actionLabel}
-        </SketchButton>
+        <SketchAddButton
+          variant="outline"
+          label={actionLabel}
+          onClick={onAction}
+          className="mt-2"
+        />
       )}
     </SketchCard>
   );

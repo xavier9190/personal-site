@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { getModuleByPath, type ModuleId, MODULES } from '@/config/modules';
-import { SketchButton } from '@/components/sketch/SketchButton';
+import { SketchAddButton } from '@/components/sketch/SketchAddButton';
 
 export interface PageHeaderProps {
   moduleId?: ModuleId;
@@ -29,7 +29,6 @@ export function PageHeader({
 
   const displayTitle = title ?? mod?.label ?? '';
   const showAdd = mod ? mod.showAddButton : false;
-  const addLabel = mod?.addButtonLabel ?? '+ ADICIONAR';
 
   return (
     <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#f1f3f5] pb-4">
@@ -44,15 +43,7 @@ export function PageHeader({
 
       <div className="flex items-center gap-3">
         {extraControls}
-        {showAdd && (
-          <SketchButton
-            variant="default"
-            onClick={onAddClick}
-            data-testid="module-add-button"
-          >
-            {addLabel}
-          </SketchButton>
-        )}
+        {showAdd && <SketchAddButton onClick={onAddClick} />}
       </div>
     </header>
   );

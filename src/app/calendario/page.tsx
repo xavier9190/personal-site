@@ -22,8 +22,8 @@ export default function CalendarioPage() {
             {events.length === 0 ? (
               <EmptyState
                 title="NENHUM EVENTO OU PRAZO NA GRADE"
-                description="CLIQUE EM + NOVA AGENDA PARA CRIAR UM COMPROMISSO OU CADASTRE PRAZOS NOS OUTROS MÓDULOS."
-                actionLabel="+ NOVA AGENDA"
+                description="CLIQUE EM + ADICIONAR PARA CRIAR UM COMPROMISSO OU CADASTRE PRAZOS NOS OUTROS MÓDULOS."
+                actionLabel="+ ADICIONAR"
               />
             ) : null}
           </SketchCard>

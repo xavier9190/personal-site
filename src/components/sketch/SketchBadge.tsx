@@ -18,7 +18,7 @@ export function SketchBadge({
         'inline-flex items-center rounded border px-2 py-0.5 text-xs uppercase tracking-wider',
         inverted
           ? 'border-[#f1f3f5] bg-[#f1f3f5] text-[#121212]'
-          : 'border-[#f1f3f5] bg-[#1e1e1e] text-[#f1f3f5]',
+          : 'border-[#f1f3f5] bg-[#121212] text-[#f1f3f5]',
         className,
       )}
       {...props}
