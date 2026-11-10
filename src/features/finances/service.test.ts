@@ -324,6 +324,13 @@ describe('FinancesService seam (Transactions, Filters, Balance, Privacy)', () =>
       });
       expect(withStandalone.toPayCents).toBe(25000); // 50,00 (card bill) + 200,00 (standalone)
       expect(withStandalone.pendingBillsCount).toBe(2);
+
+      // Installments only charge months within startMonth..startMonth+total-1
+      const jan = service.getBalanceSummary({ period: 'NEXT_MONTH', referenceDate: '2026-12-10' });
+      expect(jan.toPayCents).toBe(20000); // Mouse ended 2026-12; only the course remains
+      expect(jan.pendingBillsCount).toBe(1);
+      const august = service.getBalanceSummary({ period: 'LAST_MONTH', referenceDate: '2026-09-10' });
+      expect(august.toPayCents).toBe(0); // nothing started yet in 2026-08
     } finally {
       close();
     }

@@ -11,6 +11,7 @@ import {
   createPayableBillAction,
   deletePayableBillAction,
   togglePayableBillStatusAction,
+  updatePayableBillAction,
 } from '../bill-actions';
 import { CategorySelector } from './CategorySelector';
 
@@ -40,6 +41,7 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
   const [dueDate, setDueDate] = useState(toRecifeDateString());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function exec(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -50,13 +52,25 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
   }
 
   async function handleCreate() {
+    const payload = { title, billType, category, amountBRL, dueDate };
     const ok = await exec(() =>
-      createPayableBillAction({ title, billType, category, amountBRL, dueDate }),
+      editingId ? updatePayableBillAction(editingId, payload) : createPayableBillAction(payload),
     );
     if (ok) {
       setTitle('');
       setAmountBRL('');
+      setEditingId(null);
     }
+  }
+
+  function startEdit(bill: PayableBillRecord) {
+    if (bill.billType === 'CREDIT_CARD_BILL') return;
+    setEditingId(bill.id);
+    setTitle(bill.title);
+    setBillType(bill.billType as BillType);
+    setCategory(bill.category);
+    setAmountBRL(formatCentsToBRL(bill.amountCents).replace(/^R\$\s*/, ''));
+    setDueDate(bill.dueDate);
   }
 
   return (
@@ -88,6 +102,16 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
                     >
                       {paid ? 'PAGO' : 'FALTA PAGAR'}
                     </SketchButton>
+                    {bill.billType !== 'CREDIT_CARD_BILL' && (
+                      <SketchButton
+                        variant="ghost"
+                        className="min-h-[36px] px-2 text-[10px]"
+                        disabled={busy}
+                        onClick={() => startEdit(bill)}
+                      >
+                        EDITAR
+                      </SketchButton>
+                    )}
                     <SketchButton
                       variant="ghost"
                       className="min-h-[36px] px-2 text-[10px]"
@@ -149,7 +173,7 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
             <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
           )}
           <SketchButton variant="filled" disabled={busy} onClick={handleCreate}>
-            + ADICIONAR CONTA
+            {editingId ? 'SALVAR EDIÇÃO' : '+ ADICIONAR CONTA'}
           </SketchButton>
         </div>
       </div>

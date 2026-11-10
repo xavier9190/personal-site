@@ -180,7 +180,7 @@ export class FinancesService {
     const existingBills = this.repo.getAllPayableBills();
 
     for (const card of cards) {
-      const cardTotal = computeCardInstallmentsTotal(card.id, allPlans);
+      const cardTotal = computeCardInstallmentsTotal(card.id, allPlans, competenceMonth);
       const existing = existingBills.find(
         (b) =>
           b.billType === 'CREDIT_CARD_BILL' &&
@@ -220,7 +220,8 @@ export class FinancesService {
       period,
       referenceDate: params?.referenceDate,
     }).filter((b) => b.status === 'PENDING');
-    return computeBalanceSummary(periodTxs, pendingBills, this.listInstallmentPlans());
+    const month = getYearMonthPrefix(period, params?.referenceDate);
+    return computeBalanceSummary(periodTxs, pendingBills, this.listInstallmentPlans(), month);
   }
 
   getHideBalance(): boolean {

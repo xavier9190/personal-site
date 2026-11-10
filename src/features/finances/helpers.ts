@@ -87,22 +87,36 @@ export function buildCardDueDate(competenceMonth: string, dueDay: number): strin
   return `${yStr}-${mStr}-${String(clampedDay).padStart(2, '0')}`;
 }
 
+function monthIndex(yearMonth: string): number {
+  const [y, m] = yearMonth.split('-').map(Number);
+  return y * 12 + (m - 1);
+}
+
+/** Plan charges months startMonth .. startMonth + total - 1; `month` null = no month filter. */
+function isPlanActiveInMonth(p: InstallmentPlanRecord, month: string | null): boolean {
+  if (p.paidInstallments >= p.totalInstallments) return false;
+  if (!month) return true;
+  const idx = monthIndex(month);
+  const start = monthIndex(p.startMonth);
+  return idx >= start && idx <= start + p.totalInstallments - 1;
+}
+
 export function computeCardInstallmentsTotal(
   cardId: string,
   allPlans: InstallmentPlanRecord[],
+  month: string | null = null,
 ): number {
   const activeForCard = allPlans.filter(
-    (p) => p.creditCardId === cardId && p.paidInstallments < p.totalInstallments,
+    (p) => p.creditCardId === cardId && isPlanActiveInMonth(p, month),
   );
   return sumCents(activeForCard.map((p) => p.installmentAmountCents));
 }
 
 export function computeStandaloneInstallmentsTotal(
   allPlans: InstallmentPlanRecord[],
+  month: string | null = null,
 ): { totalCents: number; count: number } {
-  const activeStandalone = allPlans.filter(
-    (p) => !p.creditCardId && p.paidInstallments < p.totalInstallments,
-  );
+  const activeStandalone = allPlans.filter((p) => !p.creditCardId && isPlanActiveInMonth(p, month));
   return {
     totalCents: sumCents(activeStandalone.map((p) => p.installmentAmountCents)),
     count: activeStandalone.length,
@@ -114,9 +128,7 @@ export function filterBillsByPrefix(
   prefix: string | null,
 ): PayableBillRecord[] {
   return bills
-    .filter((b) =>
-      prefix ? b.competenceMonth === prefix || b.dueDate.startsWith(prefix) : true,
-    )
+    .filter((b) => (prefix ? b.competenceMonth === prefix : true))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
@@ -124,6 +136,7 @@ export function computeBalanceSummary(
   periodTxs: TransactionRecord[],
   pendingBills: PayableBillRecord[],
   allPlans: InstallmentPlanRecord[],
+  month: string | null = null,
 ): BalanceSummary {
   const paidTxs = periodTxs.filter((tx) => tx.status === 'PAID');
   const incomeCents = sumCents(
@@ -133,7 +146,7 @@ export function computeBalanceSummary(
     paidTxs.filter((t) => t.type === 'EXPENSE').map((t) => t.amountCents),
   );
   const balanceCents = incomeCents - expenseCents;
-  const standalone = computeStandaloneInstallmentsTotal(allPlans);
+  const standalone = computeStandaloneInstallmentsTotal(allPlans, month);
   const toPayCents = sumCents(pendingBills.map((b) => b.amountCents)) + standalone.totalCents;
 
   return {

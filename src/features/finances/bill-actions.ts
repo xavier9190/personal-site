@@ -58,6 +58,20 @@ export async function createPayableBillAction(raw: BillFormPayload) {
   );
 }
 
+export async function updatePayableBillAction(id: string, raw: BillFormPayload) {
+  return run(
+    (s) =>
+      void s.updatePayableBill(id, {
+        title: raw.title,
+        billType: raw.billType,
+        category: raw.category,
+        amountCents: parseBRLToCents(raw.amountBRL),
+        dueDate: raw.dueDate,
+      }),
+    'ERRO AO ATUALIZAR CONTA',
+  );
+}
+
 export async function togglePayableBillStatusAction(id: string, paid: boolean) {
   return run(
     (s) => void (paid ? s.markBillPaid(id) : s.markBillPending(id)),
