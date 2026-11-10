@@ -336,6 +336,40 @@ describe('FinancesService seam (Transactions, Filters, Balance, Privacy)', () =>
     }
   });
 
+  it('repeats FIXED_RECURRING bills every month as PENDING and counts unpaid ones in A Pagar', () => {
+    const { db, close } = createDbClient(':memory:');
+    const service = new FinancesService(db);
+
+    try {
+      const bill = service.createPayableBill({
+        title: 'Plano Internet',
+        billType: 'FIXED_RECURRING',
+        amountCents: 5700,
+        category: 'MORADIA',
+        dueDate: '2026-11-10',
+      });
+      service.markBillPaid(bill.id, '2026-11-10');
+
+      const nov = service.getBalanceSummary({ period: 'THIS_MONTH', referenceDate: '2026-11-10' });
+      expect(nov.toPayCents).toBe(0);
+
+      const dec = service.listPayableBills({ period: 'NEXT_MONTH', referenceDate: '2026-11-10' });
+      expect(dec).toHaveLength(1);
+      expect(dec[0].status).toBe('PENDING');
+      expect(dec[0].dueDate).toBe('2026-12-10');
+      expect(
+        service.getBalanceSummary({ period: 'NEXT_MONTH', referenceDate: '2026-11-10' }).toPayCents,
+      ).toBe(5700);
+
+      // never backfills before the first month
+      expect(
+        service.listPayableBills({ period: 'LAST_MONTH', referenceDate: '2026-11-10' }),
+      ).toHaveLength(0);
+    } finally {
+      close();
+    }
+  });
+
   it('edits Payable Bills and keeps linked PAID transaction synchronized', () => {
     const { db, close } = createDbClient(':memory:');
     const service = new FinancesService(db);

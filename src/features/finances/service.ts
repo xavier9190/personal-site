@@ -207,9 +207,40 @@ export class FinancesService {
     }
   }
 
+  private syncFixedBillsForMonth(competenceMonth: string): void {
+    const fixed = this.repo
+      .getAllPayableBills()
+      .filter((b) => b.billType === 'FIXED_RECURRING');
+    const latestByTitle = new Map<string, PayableBillRecord>();
+    for (const bill of fixed) {
+      const prev = latestByTitle.get(bill.title);
+      if (!prev || bill.competenceMonth > prev.competenceMonth) latestByTitle.set(bill.title, bill);
+    }
+    for (const [title, latest] of latestByTitle) {
+      const startedBefore = fixed.some(
+        (b) => b.title === title && b.competenceMonth < competenceMonth,
+      );
+      const existsInMonth = fixed.some(
+        (b) => b.title === title && b.competenceMonth === competenceMonth,
+      );
+      const hasEarlier = latest.competenceMonth < competenceMonth || startedBefore;
+      if (existsInMonth || !hasEarlier) continue;
+      this.createPayableBill({
+        title,
+        billType: 'FIXED_RECURRING',
+        amountCents: latest.amountCents,
+        category: latest.category,
+        dueDate: buildCardDueDate(competenceMonth, Number(latest.dueDate.slice(8, 10))),
+        competenceMonth,
+      });
+    }
+  }
+
   listPayableBills(params?: { period?: FinancePeriod; referenceDate?: string }): PayableBillRecord[] {
     const prefix = getYearMonthPrefix(params?.period ?? 'ALL', params?.referenceDate);
-    this.syncCreditCardBillsForMonth(prefix ?? toRecifeDateString().slice(0, 7));
+    const month = prefix ?? toRecifeDateString().slice(0, 7);
+    this.syncCreditCardBillsForMonth(month);
+    this.syncFixedBillsForMonth(month);
     return filterBillsByPrefix(this.repo.getAllPayableBills(), prefix);
   }
 

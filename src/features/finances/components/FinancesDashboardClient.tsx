@@ -14,6 +14,7 @@ import { FinanceKpiCards } from './FinanceKpiCards';
 import { TransactionsTable } from './TransactionsTable';
 import { TransactionModal } from './TransactionModal';
 import { InstallmentsPanel } from './InstallmentsPanel';
+import { FixedBillsSection } from './FixedBillsSection';
 import { BillsModal } from './BillsModal';
 import { CreditCardsModal } from './CreditCardsModal';
 import { InstallmentModal } from './InstallmentModal';
@@ -145,13 +146,14 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
         />
         </div>
 
-        <div className={cn(mobileTab === 'TX' && 'hidden lg:block')}>
+        <div className={cn('space-y-6', mobileTab === 'TX' && 'hidden lg:block')}>
           <InstallmentsPanel
             plans={view.installmentPlans}
             onOpenBills={() => setBillsOpen(true)}
             onOpenCards={() => setCardsOpen(true)}
             onOpenInstallment={() => setInstallmentOpen(true)}
           />
+          <FixedBillsSection bills={view.payableBills} onOpenBills={() => setBillsOpen(true)} />
         </div>
       </div>
 
