@@ -131,6 +131,7 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         initialTransaction={editingTx}
+        availableCategories={view.availableCategories}
       />
     </div>
   );

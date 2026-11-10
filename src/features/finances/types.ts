@@ -6,6 +6,19 @@ import type * as schema from './schema';
 export type FinancePeriod = 'THIS_MONTH' | 'LAST_MONTH' | 'NEXT_MONTH' | 'ALL';
 export type TransactionRecord = typeof schema.transactions.$inferSelect;
 
+export const PRESET_TRANSACTION_CATEGORIES: readonly string[] = [
+  'ALIMENTAÇÃO',
+  'TRANSPORTE',
+  'MORADIA',
+  'ASSINATURAS',
+  'LAZER',
+  'SAÚDE',
+  'EDUCAÇÃO',
+  'COMPRAS',
+  'TRABALHO',
+  'OUTROS',
+] as const;
+
 export const createTransactionSchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   description: z.string().trim().min(1, 'DESCRIÇÃO OBRIGATÓRIA'),
@@ -47,6 +60,7 @@ export interface FinancesDashboardView {
   transactions: TransactionRecord[];
   distinctDates: string[];
   distinctCategories: string[];
+  availableCategories: string[];
   summary: BalanceSummary;
   hideBalance: boolean;
 }

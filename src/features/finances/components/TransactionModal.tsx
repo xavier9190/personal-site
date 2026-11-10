@@ -11,23 +11,26 @@ import {
   deleteTransactionAction,
   updateTransactionAction,
 } from '../actions';
+import { CategorySelector } from './CategorySelector';
 
 export interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTransaction?: TransactionRecord | null;
+  availableCategories?: readonly string[];
 }
 
 export function TransactionModal({
   isOpen,
   onClose,
   initialTransaction,
+  availableCategories,
 }: TransactionModalProps) {
   const isEditing = Boolean(initialTransaction);
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [occurredAt, setOccurredAt] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('ALIMENTAÇÃO');
   const [amountBRL, setAmountBRL] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -158,19 +161,11 @@ export function TransactionModal({
           />
         </div>
 
-        <div>
-          <label htmlFor="tx-category" className="mb-1 block text-xs">
-            CATEGORIA
-          </label>
-          <input
-            id="tx-category"
-            type="text"
-            placeholder="EX: ALIMENTAÇÃO, TRANSPORTE, TRABALHO..."
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        <CategorySelector
+          value={category}
+          onChange={setCategory}
+          availableCategories={availableCategories}
+        />
 
         {error && (
           <p className="rounded border-2 border-dashed border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5]">

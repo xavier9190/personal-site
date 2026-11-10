@@ -7,6 +7,7 @@ import { sumCents } from '@/lib/currency';
 import * as schema from './schema';
 import {
   createTransactionSchema,
+  PRESET_TRANSACTION_CATEGORIES,
   updateTransactionSchema,
   type BalanceSummary,
   type CreateTransactionInput,
@@ -179,6 +180,14 @@ export class FinancesService {
     const distinctCategories = Array.from(
       new Set(periodTxs.map((t) => t.category.toUpperCase())),
     ).sort();
+    const allSavedCategories = this.db
+      .select()
+      .from(schema.transactions)
+      .all()
+      .map((t) => t.category.toUpperCase());
+    const availableCategories = Array.from(
+      new Set([...PRESET_TRANSACTION_CATEGORIES, ...allSavedCategories]),
+    );
 
     return {
       period,
@@ -187,6 +196,7 @@ export class FinancesService {
       transactions: this.listTransactions({ ...filters, period }),
       distinctDates,
       distinctCategories,
+      availableCategories,
       summary: this.getBalanceSummary({ period, referenceDate: filters?.referenceDate }),
       hideBalance: this.getHideBalance(),
     };
