@@ -1,0 +1,3 @@
+# Modelo Financeiro: Contas a Pagar, Fatura de Cartão e Planos de Parcelamento
+
+O card `A Pagar` (e o widget `Falta Pagar` / `Pago` no Chat) consolida três tipos de obrigações mensais: **Contas Fixas recorrentes**, **Faturas de Cartão de Crédito** e **Dívidas avulsas a pessoas/terceiros**. Compras parceladas em cartão de crédito são registradas como `Planos de Parcelamento` (exibidos individualmente na coluna `Parcelas a Pagar` no formato `N/Total — FALTAM X DE R$ Y`) e suas parcelas mensais agregam-se na fatura do respectivo cartão, evitando contagem dupla no card `A Pagar`. Todos os valores monetários são armazenados como inteiros em centavos (`integer`) para evitar erros de ponto flutuante.

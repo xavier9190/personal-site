@@ -1,0 +1,3 @@
+# Projeção Unificada do Calendário entre Módulos
+
+O módulo de Calendário (e o widget `Próximas Agendas` na tela de Chat) combina, em tempo de leitura no nível de *service*, os eventos próprios da tabela do Calendário com datas originadas dos módulos `Acadêmico` (marcos e entregas finais), `Finanças` (vencimentos de contas/parcelas) e `Compras` (data estimada de entrega), em vez de duplicar registros na tabela de eventos. Eventos manuais usam as 4 cores da paleta (`#b2f2bb`, `#ffc9c9`, `#a5d8ff`, `#ffec99`) para diferenciar visualmente onde começa e termina cada reunião (especialmente em eventos adjacentes ou concorrentes), enquanto itens projetados carregam cor semântica e vínculo direto com o registro de origem.

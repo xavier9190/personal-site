@@ -1,0 +1,3 @@
+# Arquitetura de IA com Antigravity SDK e Tool Calling sobre Services Compartilhados
+
+O módulo `Chat` utiliza uma interface desacoplada (`AIProvider`) conectada ao **Antigravity SDK** (`google-antigravity`), aproveitando a autenticação e o runtime local do Antigravity sem exigir chaves pagas avulsas de APIs externas. Os *services* dos módulos (`Calendário`, `Finanças`, `Acadêmico`, `Compras`) são expostos ao agente via *tools* (MCP / endpoints locais validados com Zod), garantindo paridade 100% entre usar o sistema pela UI ou pelo Chat. Operações de leitura, criação e edição simples são executadas imediatamente com feedback visual no chat (e opção de desfazer), enquanto exclusões ou mutações em massa exigem confirmação explícita (`[Confirmar] / [Cancelar]`).

@@ -1,0 +1,55 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Calendar,
+  GraduationCap,
+  MessageSquare,
+  ShoppingBag,
+  Wallet,
+} from 'lucide-react';
+import { getModuleByPath, MODULES, type ModuleId } from '@/config/modules';
+import { cn } from '@/lib/utils';
+
+const MODULE_ICONS: Record<ModuleId, typeof MessageSquare> = {
+  chat: MessageSquare,
+  calendar: Calendar,
+  finances: Wallet,
+  academic: GraduationCap,
+  shopping: ShoppingBag,
+};
+
+export function MobileBottomNav() {
+  const pathname = usePathname() || '/';
+  const activeModule = getModuleByPath(pathname);
+
+  return (
+    <nav
+      aria-label="NAVEGAÇÃO INFERIOR MOBILE"
+      className="fixed right-0 bottom-0 left-0 z-40 flex h-16 items-center justify-around border-t-2 border-[#f1f3f5] bg-[#1e1e1e] px-2 md:hidden"
+    >
+      {MODULES.map((mod) => {
+        const Icon = MODULE_ICONS[mod.id];
+        const isActive = activeModule?.id === mod.id;
+
+        return (
+          <Link
+            key={mod.id}
+            href={mod.href}
+            aria-current={isActive ? 'page' : undefined}
+            className={cn(
+              'flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition-all',
+              isActive
+                ? 'border-[#ffec99] bg-[#ffec99] text-[#121212]'
+                : 'border-transparent text-[#f1f3f5] hover:border-[#f1f3f5]',
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{mod.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

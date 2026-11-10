@@ -1,0 +1,3 @@
+# Calendário 100% Local com CSS Grid Customizado e `date-fns`
+
+O módulo de Calendário será construído com componentes próprios baseados em CSS Grid e `date-fns` (em vez de bibliotecas engessadas como FullCalendar), garantindo fidelidade total ao Design System Sketch (`Excalifont` em uppercase, bordas estilo desenho à mão e paleta de 4 cores) nas 5 visões (`Dia`, `Semana`, `Mês`, `Ano` e `Programação`). O calendário é estritamente próprio e local no SQLite (sem sincronização com Google Calendar nem no MVP nem no roadmap futuro), suportando eventos recorrentes (`Diário`, `Semanal`, `Mensal`) e resolução visual de conflitos de horário lado a lado.

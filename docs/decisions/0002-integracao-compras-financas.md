@@ -1,0 +1,3 @@
+# Integração Condicional entre Compras e Finanças no Fluxo "Comprei"
+
+Ao marcar um item da Wishlist como comprado (`Comprei ✓`), o sistema move o item para `Já Comprei (A Caminho)`, solicita a data estimada de chegada e o app/loja da compra e exibe um passo/modal de confirmação explícito (`"Você já lançou esse gasto em Finanças?"` com opções **Sim** e **Não**). Se o usuário responder **Sim**, apenas o rastreio de entrega é criado; se responder **Não**, o sistema coleta a forma de pagamento (à vista ou parcelado) e cria automaticamente a transação ou plano de parcelas no módulo `Finanças`, evitando tanto o retrabalho quanto lançamentos duplicados.

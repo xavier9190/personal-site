@@ -1,0 +1,3 @@
+# Design System Sketch (Excalidraw) e Navegação Mobile
+
+A interface adota um tema escuro estilo sketch com a fonte `Excalifont` aplicada globalmente em `UPPERCASE`, fundo principal `#121212`, superfícies/cards `#1e1e1e`, traços/textos claros `#f1f3f5` (e `#868e96` para itens secundários/concluídos) e quatro cores semânticas suaves (`#b2f2bb` verde, `#ffc9c9` vermelho, `#a5d8ff` azul e `#ffec99` amarelo/marrom). No desktop, a `Sidebar` é fixa à esquerda em layouts de 2 ou 3 colunas; em telas mobile (`< 768px`), a `Sidebar` converte-se em uma `Bottom Navigation Bar` fixa e os painéis secundários da 3ª coluna tornam-se abas/gavetas alternáveis.

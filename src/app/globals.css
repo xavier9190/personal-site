@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Excalifont';
+  src: url('/fonts/Excalifont-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg-page: #121212;
+  --bg-surface: #1e1e1e;
+  --stroke-primary: #f1f3f5;
+  --text-primary: #f1f3f5;
+  --text-muted: #868e96;
+  --accent-green: #b2f2bb;
+  --accent-red: #ffc9c9;
+  --accent-blue: #a5d8ff;
+  --accent-yellow: #ffec99;
+}
+
+html,
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: 'Excalifont', 'Comic Sans MS', cursive, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-height: 100%;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Filled pastel blocks strictly enforce dark contrast text (#121212) */
+.sketch-fill-green {
+  background-color: var(--accent-green);
+  color: #121212;
+  border-color: var(--stroke-primary);
+}
+
+.sketch-fill-red {
+  background-color: var(--accent-red);
+  color: #121212;
+  border-color: var(--stroke-primary);
+}
+
+.sketch-fill-blue {
+  background-color: var(--accent-blue);
+  color: #121212;
+  border-color: var(--stroke-primary);
+}
+
+.sketch-fill-yellow {
+  background-color: var(--accent-yellow);
+  color: #121212;
+  border-color: var(--stroke-primary);
+}
+
+.sketch-shadow {
+  box-shadow: 2px 2px 0px #f1f3f5;
+}
+
+.sketch-shadow-sm {
+  box-shadow: 1px 1px 0px #f1f3f5;
+}
