@@ -1,7 +1,6 @@
 'use client';
 
 import { useTransition } from 'react';
-import { SketchButton } from '@/components/sketch/SketchButton';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import type { InstallmentPlanView } from '../service';
 import { advanceInstallmentAction, deleteInstallmentPlanAction } from '../bill-actions';
@@ -15,28 +14,33 @@ export interface InstallmentsPanelProps {
 
 export function InstallmentsPanel({
   plans,
-  onOpenBills,
   onOpenCards,
   onOpenInstallment,
 }: InstallmentsPanelProps) {
   const [pending, startTransition] = useTransition();
 
   return (
-    <section className="flex flex-1 min-h-0 flex-col gap-2">
-      <h2 className="border-b border-[#f1f3f5] pb-1 text-sm md:text-base tracking-wider shrink-0">
-        PARCELAS A PAGAR
-      </h2>
-
-      <div className="flex flex-wrap gap-2 shrink-0">
-        <SketchButton variant="outline" className="min-h-[32px] h-8 px-2 text-[10px]" onClick={onOpenBills}>
-          CONTAS A PAGAR
-        </SketchButton>
-        <SketchButton variant="outline" className="min-h-[32px] h-8 px-2 text-[10px]" onClick={onOpenCards}>
-          CARTÕES
-        </SketchButton>
-        <SketchButton variant="outline" className="min-h-[32px] h-8 px-2 text-[10px]" onClick={onOpenInstallment}>
-          + PARCELA
-        </SketchButton>
+    <section className="flex flex-1 min-h-0 flex-col gap-3">
+      <div className="flex items-center justify-between border-b-2 border-[#f1f3f5] pb-1.5 shrink-0">
+        <h2 className="text-sm md:text-base font-semibold tracking-wider text-[#f1f3f5]">
+          PARCELAS A PAGAR
+        </h2>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenCards}
+            className="text-[11px] text-[#868e96] hover:text-[#f1f3f5] transition-colors uppercase tracking-wider"
+          >
+            CARTÕES
+          </button>
+          <button
+            type="button"
+            onClick={onOpenInstallment}
+            className="rounded-md border border-[#f1f3f5] px-2 py-0.5 text-[11px] text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors uppercase tracking-wider font-medium"
+          >
+            + PARCELA
+          </button>
+        </div>
       </div>
 
       {plans.length === 0 ? (
@@ -45,47 +49,47 @@ export function InstallmentsPanel({
           description="SUAS COMPRAS PARCELADAS APARECERÃO AQUI NO FORMATO N/TOTAL."
         />
       ) : (
-        <ul className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
+        <ul className="flex-1 min-h-0 space-y-2.5 overflow-y-auto pr-1">
           {plans.map((plan) => (
             <li
               key={plan.id}
-              className="space-y-1.5 rounded-xl border-2 border-[#f1f3f5] bg-[#121212] p-3 text-left"
+              className="group relative flex flex-col justify-between rounded-2xl border-2 border-[#f1f3f5] bg-[#121212] p-4 text-left transition-colors hover:border-[#868e96]"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium tracking-wide text-[#f1f3f5] truncate">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm md:text-base font-semibold tracking-wide text-[#f1f3f5] truncate uppercase">
                   {plan.description}
                 </span>
-                <span className="text-sm font-medium tracking-wide text-[#f1f3f5] shrink-0">
-                  {plan.paidInstallments}/{plan.totalInstallments}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-[#f1f3f5]">
-                  {plan.subtitleText}
-                </span>
-                {plan.creditCardName && (
-                  <span className="text-[10px] text-[#868e96] border border-[#868e96] rounded px-1 shrink-0">
-                    {plan.creditCardName}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2 pt-1 border-t border-[#f1f3f5]/20 mt-1">
-                <SketchButton
-                  variant="outline"
-                  className="min-h-[28px] h-7 px-2 text-[10px]"
+                <button
+                  type="button"
+                  title="CLIQUE PARA AVANÇAR (+1 PARCELA PAGA)"
                   disabled={pending}
                   onClick={() => startTransition(() => void advanceInstallmentAction(plan.id))}
+                  className="rounded-md border border-[#f1f3f5] px-2 py-0.5 text-xs font-semibold tracking-wider text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors shrink-0"
                 >
-                  +1 PARCELA PAGA
-                </SketchButton>
-                <SketchButton
-                  variant="ghost"
-                  className="min-h-[28px] h-7 px-2 text-[10px]"
-                  disabled={pending}
-                  onClick={() => startTransition(() => void deleteInstallmentPlanAction(plan.id))}
-                >
-                  X
-                </SketchButton>
+                  {plan.paidInstallments}/{plan.totalInstallments}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 mt-2">
+                <span className="text-xs text-[#f1f3f5] tracking-wide uppercase">
+                  {plan.subtitleText}
+                </span>
+                <div className="flex items-center gap-2">
+                  {plan.creditCardName && (
+                    <span className="text-[10px] text-[#868e96] border border-[#868e96] rounded px-1 shrink-0 uppercase">
+                      {plan.creditCardName}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    title="EXCLUIR PARCELAMENTO"
+                    disabled={pending}
+                    onClick={() => startTransition(() => void deleteInstallmentPlanAction(plan.id))}
+                    className="opacity-0 group-hover:opacity-100 text-xs text-[#868e96] hover:text-[#f1f3f5] transition-opacity"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </li>
           ))}
