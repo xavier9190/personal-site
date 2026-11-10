@@ -74,8 +74,8 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 md:h-full md:overflow-hidden">
+      <header className="flex flex-wrap items-center justify-between gap-4 shrink-0">
         <div className="flex flex-wrap items-center gap-6">
           <h1 className="inline-block border-b-2 border-[#f1f3f5] pb-1 text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
             FINANÇAS
@@ -107,15 +107,17 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
         <SketchAddButton onClick={openCreateModal} />
       </header>
 
-      <FinanceKpiCards
-        balanceCents={view.summary.balanceCents}
-        toPayCents={view.summary.toPayCents}
-        pendingBillsCount={view.summary.pendingBillsCount}
-        forecastCents={view.summary.forecastCents}
-        initialHideBalance={view.hideBalance}
-      />
+      <div className="shrink-0">
+        <FinanceKpiCards
+          balanceCents={view.summary.balanceCents}
+          toPayCents={view.summary.toPayCents}
+          pendingBillsCount={view.summary.pendingBillsCount}
+          forecastCents={view.summary.forecastCents}
+          initialHideBalance={view.hideBalance}
+        />
+      </div>
 
-      <div className="grid grid-cols-2 gap-2 lg:hidden" role="tablist">
+      <div className="grid grid-cols-2 gap-2 lg:hidden shrink-0" role="tablist">
         <SketchButton
           variant={mobileTab === 'TX' ? 'filled' : 'outline'}
           onClick={() => setMobileTab('TX')}
@@ -130,23 +132,28 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
         </SketchButton>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-6 border-t-2 border-[#f1f3f5] pt-4 lg:grid-cols-3">
-        <div className={cn('lg:col-span-2', mobileTab === 'INST' && 'hidden lg:block')}>
-        <TransactionsTable
-          transactions={view.transactions}
-          distinctDates={view.distinctDates}
-          distinctCategories={view.distinctCategories}
-          dateFilter={view.dateFilter}
-          categoryFilter={view.categoryFilter}
-          onDateChange={(date) => updateQuery({ date })}
-          onCategoryChange={(category) => updateQuery({ category })}
-          onClearFilters={() => updateQuery({ date: '', category: '' })}
-          onCreateClick={openCreateModal}
-          onEditClick={openEditModal}
-        />
+      <div className="flex flex-1 flex-col lg:flex-row gap-6 border-t-2 border-[#f1f3f5] pt-4 min-h-0 overflow-hidden">
+        <div className={cn('flex flex-1 min-h-0 lg:w-3/5 xl:w-2/3', mobileTab === 'INST' && 'hidden lg:flex')}>
+          <TransactionsTable
+            transactions={view.transactions}
+            distinctDates={view.distinctDates}
+            distinctCategories={view.distinctCategories}
+            dateFilter={view.dateFilter}
+            categoryFilter={view.categoryFilter}
+            onDateChange={(date) => updateQuery({ date })}
+            onCategoryChange={(category) => updateQuery({ category })}
+            onClearFilters={() => updateQuery({ date: '', category: '' })}
+            onCreateClick={openCreateModal}
+            onEditClick={openEditModal}
+          />
         </div>
 
-        <div className={cn('space-y-6', mobileTab === 'TX' && 'hidden lg:block')}>
+        <div
+          className={cn(
+            'flex flex-1 flex-col min-h-0 lg:w-2/5 xl:w-1/3 lg:border-l-2 lg:border-[#f1f3f5] lg:pl-6 gap-3',
+            mobileTab === 'TX' && 'hidden lg:flex',
+          )}
+        >
           <InstallmentsPanel
             plans={view.installmentPlans}
             onOpenBills={() => setBillsOpen(true)}

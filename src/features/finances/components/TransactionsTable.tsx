@@ -37,8 +37,8 @@ export function TransactionsTable({
   const hasActiveFilters = Boolean(dateFilter || categoryFilter);
 
   return (
-    <section className="flex flex-col space-y-4 lg:col-span-2">
-      <div className="flex flex-wrap items-center gap-3">
+    <section className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3 shrink-0">
         <Filter className="h-5 w-5 text-[#f1f3f5]" aria-hidden="true" />
         <span className="text-[#868e96]">|</span>
 
@@ -83,10 +83,10 @@ export function TransactionsTable({
         )}
       </div>
 
-      <SketchCard className="flex flex-1 flex-col space-y-3">
-        <h2 className="text-base tracking-wider">ÚLTIMAS TRANSAÇÕES</h2>
+      <SketchCard className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <h2 className="text-base tracking-wider shrink-0">ÚLTIMAS TRANSAÇÕES</h2>
 
-        <div className="grid grid-cols-12 items-center border-b-2 border-[#f1f3f5] pb-2 text-xs text-[#f1f3f5]">
+        <div className="grid grid-cols-12 items-center border-b-2 border-[#f1f3f5] pb-2 text-xs text-[#f1f3f5] shrink-0">
           <span className="col-span-3">DATA</span>
           <span className="col-span-4 border-l border-[#f1f3f5] pl-2">DESC</span>
           <span className="col-span-3 border-l border-[#f1f3f5] pl-2">CATEG</span>
@@ -112,13 +112,13 @@ export function TransactionsTable({
             />
           )
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
             {transactions.map((tx) => (
               <button
                 key={tx.id}
                 type="button"
                 onClick={() => onEditClick(tx)}
-                className="grid w-full grid-cols-12 items-center rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-left text-xs text-[#f1f3f5] transition-all hover:border-dashed"
+                className="grid w-full grid-cols-12 items-center rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-left text-xs text-[#f1f3f5] transition-all hover:border-dashed shrink-0"
               >
                 <span className="col-span-3 flex items-center gap-2">
                   <TransactionFlowIcon type={tx.type} />
