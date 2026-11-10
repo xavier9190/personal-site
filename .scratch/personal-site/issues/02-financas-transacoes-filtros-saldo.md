@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Fundação Sketch, Shell de Navegação (Sidebar/BottomNav) e Infra SQLite Sem Seed
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O botão `+ ADICIONAR` na tela de `Finanças` permite registrar uma nova `Transação` (`Entrada` ou `Saída`) com data, descrição, categoria e valor em reais (armazenado em centavos).
-- [ ] A tabela `Últimas Transações` mantém visual monocromático e exibe em cada linha apenas um ícone circular colorido com seta para cima (`#b2f2bb`) se for entrada ou seta para baixo (`#ffc9c9`) se for saída, permitindo editar ou excluir qualquer registro.
-- [ ] Os seletores de período no topo (`Este Mês`, `Mês Passado`, `Próximo Mês`, `Todos`) e os filtros `Data v` e `Categ v` filtram a listagem de transações e exibem estado vazio amigável quando nenhum item corresponde ao filtro.
-- [ ] O card `Saldo` calcula em tempo real o total de entradas efetivadas menos as saídas pagas, e o ícone de olho alterna e persiste a ocultação do valor (`R$ ••••`).
-- [ ] Testes de integração contra SQLite `:memory:` validam a criação, edição, exclusão, filtragem e precisão em centavos do `FinancesService`.
+- [x] O botão `+ ADICIONAR` na tela de `Finanças` permite registrar uma nova `Transação` (`Entrada` ou `Saída`) com data, descrição, categoria e valor em reais (armazenado em centavos).
+- [x] A tabela `Últimas Transações` mantém visual monocromático e exibe em cada linha apenas um ícone circular colorido com seta para cima (`#b2f2bb`) se for entrada ou seta para baixo (`#ffc9c9`) se for saída, permitindo editar ou excluir qualquer registro.
+- [x] Os seletores de período no topo (`Este Mês`, `Mês Passado`, `Próximo Mês`, `Todos`) e os filtros `Data v` e `Categ v` filtram a listagem de transações e exibem estado vazio amigável quando nenhum item corresponde ao filtro.
+- [x] O card `Saldo` calcula em tempo real o total de entradas efetivadas menos as saídas pagas, e o ícone de olho alterna e persiste a ocultação do valor (`R$ ••••`).
+- [x] Testes de integração contra SQLite `:memory:` validam a criação, edição, exclusão, filtragem e precisão em centavos do `FinancesService`.
