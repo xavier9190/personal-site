@@ -30,7 +30,7 @@ export function MobileBottomNav() {
             className={cn(
               'flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition-all',
               isActive
-                ? 'border-[#ffec99] bg-[#ffec99] text-[#121212]'
+                ? 'border-[#f1f3f5] bg-[#f1f3f5] text-[#121212]'
                 : 'border-transparent text-[#f1f3f5] hover:border-[#f1f3f5]',
             )}
           >

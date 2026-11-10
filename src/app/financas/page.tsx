@@ -19,20 +19,20 @@ export default function FinancasPage() {
       />
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SketchCard accentBorder="green" className="space-y-1">
+        <SketchCard className="space-y-1">
           <span className="text-xs text-[#868e96]">SALDO</span>
-          <p className="text-2xl text-[#b2f2bb]">{formatCentsToBRL(0)}</p>
+          <p className="text-2xl text-[#f1f3f5]">{formatCentsToBRL(0)}</p>
         </SketchCard>
 
-        <SketchCard accentBorder="red" className="space-y-1">
+        <SketchCard className="space-y-1">
           <span className="text-xs text-[#868e96]">A PAGAR</span>
-          <p className="text-2xl text-[#ffc9c9]">{formatCentsToBRL(0)}</p>
+          <p className="text-2xl text-[#f1f3f5]">{formatCentsToBRL(0)}</p>
           <span className="text-[11px] text-[#868e96]">FALTAM 0 CONTAS</span>
         </SketchCard>
 
-        <SketchCard accentBorder="blue" className="space-y-1">
+        <SketchCard className="space-y-1">
           <span className="text-xs text-[#868e96]">PREVISTO</span>
-          <p className="text-2xl text-[#a5d8ff]">{formatCentsToBRL(0)}</p>
+          <p className="text-2xl text-[#f1f3f5]">{formatCentsToBRL(0)}</p>
         </SketchCard>
       </section>
 
@@ -44,7 +44,6 @@ export default function FinancasPage() {
               title="NENHUMA TRANSAÇÃO REGISTRADA"
               description="ADICIONE SUA PRIMEIRA ENTRADA OU SAÍDA PARA INICIAR SEU FLUXO DE CAIXA."
               actionLabel="ADICIONAR +"
-              accentColor="green"
             />
           ) : null}
         </section>
@@ -55,7 +54,6 @@ export default function FinancasPage() {
             <EmptyState
               title="SEM PARCELAMENTOS ATIVOS"
               description="SUAS COMPRAS PARCELADAS APARECERÃO AQUI NO FORMATO N/TOTAL."
-              accentColor="yellow"
             />
           ) : null}
         </aside>

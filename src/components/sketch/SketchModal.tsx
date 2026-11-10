@@ -53,7 +53,7 @@ export function SketchModal({
             type="button"
             onClick={onClose}
             aria-label="FECHAR MODAL"
-            className="flex h-10 w-10 items-center justify-center rounded-md border-2 border-[#f1f3f5] bg-[#121212] text-[#f1f3f5] hover:bg-[#ffc9c9] hover:text-[#121212]"
+            className="flex h-10 w-10 items-center justify-center rounded-md border-2 border-[#f1f3f5] bg-[#121212] text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212]"
           >
             <X className="h-5 w-5" />
           </button>

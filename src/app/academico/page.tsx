@@ -22,7 +22,6 @@ export default function AcademicoPage() {
             title="NENHUM PROJETO EM ANDAMENTO"
             description="CADASTRE SEUS PROJETOS DA FACULDADE COM GRUPO, LINKS EXTERNOS E LINHA DO TEMPO DE MARCOS."
             actionLabel="+ ADICIONAR"
-            accentColor="yellow"
           />
         ) : null}
       </section>
@@ -35,7 +34,6 @@ export default function AcademicoPage() {
           <EmptyState
             title="NENHUM PROJETO CONCLUÍDO AINDA"
             description="PROJETOS FINALIZADOS FICARÃO ARQUIVADOS NESTA SEÇÃO."
-            accentColor="blue"
           />
         ) : null}
       </section>

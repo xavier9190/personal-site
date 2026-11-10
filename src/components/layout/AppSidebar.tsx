@@ -37,8 +37,8 @@ export function AppSidebar() {
               className={cn(
                 'flex min-h-[44px] items-center gap-3 rounded-md border-2 px-3 py-2.5 text-sm uppercase tracking-wider transition-all',
                 isActive
-                  ? 'border-[#ffec99] bg-[#ffec99] text-[#121212] sketch-shadow-sm'
-                  : 'border-[#f1f3f5] bg-[#121212] text-[#f1f3f5] hover:border-[#a5d8ff] hover:text-[#a5d8ff]',
+                  ? 'border-[#f1f3f5] bg-[#f1f3f5] text-[#121212] sketch-shadow-sm'
+                  : 'border-[#f1f3f5] bg-[#121212] text-[#f1f3f5] hover:bg-[#1e1e1e]',
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />

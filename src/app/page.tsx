@@ -31,7 +31,6 @@ export default function ChatPage() {
               <EmptyState
                 title="NENHUMA MENSAGEM NESTA CONVERSA"
                 description="ENVIE UM COMANDO PARA LER, ADICIONAR, EDITAR OU EXCLUIR DADOS EM CALENDÁRIO, FINANÇAS, ACADÊMICO E COMPRAS."
-                accentColor="blue"
               />
             ) : null}
 
@@ -55,15 +54,14 @@ export default function ChatPage() {
               <EmptyState
                 title="SEM AGENDAS PRÓXIMAS"
                 description="NENHUM EVENTO OU PRAZO PROJETADO."
-                accentColor="yellow"
               />
             ) : null}
           </SketchCard>
 
           <SketchCard className="space-y-3">
             <div className="flex items-center justify-between border-b border-[#f1f3f5] pb-2">
-              <h2 className="text-sm tracking-wider">FINANÇAS RÁPIDAS</h2>
-              <span className="text-sm text-[#b2f2bb]">
+              <h2 className="text-sm tracking-wider">FINANÇAS</h2>
+              <span className="text-sm text-[#f1f3f5]">
                 SALDO: {formatCentsToBRL(0)}
               </span>
             </div>
@@ -71,7 +69,6 @@ export default function ChatPage() {
               <EmptyState
                 title="NENHUMA CONTA CADASTRADA"
                 description="LISTAS FALTA PAGAR E PAGO VAZIAS."
-                accentColor="green"
               />
             ) : null}
           </SketchCard>

@@ -22,7 +22,6 @@ export default function ComprasPage() {
             title="SUA WISHLIST ESTÁ VAZIA"
             description="ADICIONE PRODUTOS QUE DESEJA COMPRAR COM PREÇO ESTIMADO E LINK DIRETO."
             actionLabel="+ ADICIONAR"
-            accentColor="blue"
           />
         ) : null}
       </section>
@@ -33,7 +32,6 @@ export default function ComprasPage() {
           <EmptyState
             title="NENHUMA ENCOMENDA EM TRÂNSITO"
             description="QUANDO MARCAR UM ITEM COMO COMPREI ✓, ACOMPANHE O PRAZO E PROGRESSO DE ENTREGA AQUI."
-            accentColor="green"
           />
         ) : null}
       </section>

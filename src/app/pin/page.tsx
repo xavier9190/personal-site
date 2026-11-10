@@ -65,10 +65,10 @@ function PinAccessForm() {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             placeholder="••••"
-            className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-[#f1f3f5] focus:border-[#a5d8ff] focus:outline-none"
+            className="w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-[#f1f3f5] focus:outline-none"
           />
           {error && (
-            <p className="mt-2 rounded border border-[#ffc9c9] bg-[#121212] px-2 py-1 text-xs text-[#ffc9c9] uppercase">
+            <p className="mt-2 rounded border border-dashed border-[#f1f3f5] bg-[#121212] px-2 py-1 text-xs text-[#f1f3f5] uppercase">
               {error}
             </p>
           )}
@@ -77,7 +77,6 @@ function PinAccessForm() {
         <SketchButton
           type="submit"
           variant="filled"
-          accentColor="green"
           disabled={loading}
           className="w-full"
         >

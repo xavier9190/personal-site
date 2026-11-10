@@ -4,18 +4,10 @@ import { cn, type SketchAccentColor } from '@/lib/utils';
 export interface SketchCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   variant?: 'default' | 'dashed' | 'muted';
-  accentBorder?: SketchAccentColor;
-  filledColor?: SketchAccentColor;
+  calendarColor?: SketchAccentColor;
 }
 
-const ACCENT_BORDER_CLASS: Record<SketchAccentColor, string> = {
-  green: 'border-[#b2f2bb]',
-  red: 'border-[#ffc9c9]',
-  blue: 'border-[#a5d8ff]',
-  yellow: 'border-[#ffec99]',
-};
-
-const FILLED_COLOR_CLASS: Record<SketchAccentColor, string> = {
+const CALENDAR_EVENT_COLOR_CLASS: Record<SketchAccentColor, string> = {
   green: 'bg-[#b2f2bb] text-[#121212] border-[#f1f3f5]',
   red: 'bg-[#ffc9c9] text-[#121212] border-[#f1f3f5]',
   blue: 'bg-[#a5d8ff] text-[#121212] border-[#f1f3f5]',
@@ -26,20 +18,18 @@ export function SketchCard({
   children,
   className,
   variant = 'default',
-  accentBorder,
-  filledColor,
+  calendarColor,
   ...props
 }: SketchCardProps) {
   return (
     <div
       className={cn(
         'rounded-md border-2 p-4 uppercase transition-colors',
-        filledColor
-          ? FILLED_COLOR_CLASS[filledColor]
-          : 'bg-[#1e1e1e] text-[#f1f3f5] border-[#f1f3f5]',
+        calendarColor
+          ? CALENDAR_EVENT_COLOR_CLASS[calendarColor]
+          : 'border-[#f1f3f5] bg-[#1e1e1e] text-[#f1f3f5]',
         variant === 'dashed' && 'border-dashed',
-        variant === 'muted' && 'opacity-60 text-[#868e96] border-[#868e96]',
-        accentBorder && !filledColor && ACCENT_BORDER_CLASS[accentBorder],
+        variant === 'muted' && 'border-[#868e96] text-[#868e96] opacity-60',
         className,
       )}
       {...props}
