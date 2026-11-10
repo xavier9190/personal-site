@@ -14,7 +14,9 @@ describe('currency seam (centavos <-> R$ pt-BR)', () => {
     expect(formatCentsToBRL(total)).toBe('R$ 20,00');
   });
 
-  it('formats negative cents and masks hidden balances for privacy', () => {
+  it('parses Brazilian thousands with or without explicit decimal cents', () => {
+    expect(parseBRLToCents('R$ 1.000')).toBe(100000);
+    expect(parseBRLToCents('R$ 1.234,56')).toBe(123456);
     expect(formatCentsToBRL(14400)).toBe('R$ 144,00');
     expect(formatCentsToBRL(-5000)).toBe('-R$ 50,00');
     expect(maskBRLValue(10000, true)).toBe('R$ ••••');

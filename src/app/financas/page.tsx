@@ -1,5 +1,4 @@
-import { getDb } from '@/db';
-import * as schema from '@/db/schema';
+import { FinancesService } from '@/features/finances/service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import { SketchCard } from '@/components/sketch/SketchCard';
@@ -8,9 +7,9 @@ import { formatCentsToBRL } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
 
 export default function FinancasPage() {
-  const db = getDb();
-  const transactions = db.select().from(schema.transactions).all();
-  const installments = db.select().from(schema.installmentPlans).all();
+  const financesService = new FinancesService();
+  const transactions = financesService.listTransactions();
+  const installments = financesService.listInstallmentPlans();
 
   return (
     <div className="flex flex-col gap-6">

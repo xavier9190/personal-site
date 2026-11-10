@@ -1,5 +1,6 @@
-import { getDb } from '@/db';
-import * as schema from '@/db/schema';
+import { ChatService } from '@/features/chat/service';
+import { CalendarService } from '@/features/calendar/service';
+import { FinancesService } from '@/features/finances/service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import { SketchCard } from '@/components/sketch/SketchCard';
@@ -8,10 +9,13 @@ import { formatCentsToBRL } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
 
 export default function ChatPage() {
-  const db = getDb();
-  const messages = db.select().from(schema.chatMessages).all();
-  const events = db.select().from(schema.calendarEvents).all();
-  const bills = db.select().from(schema.payableBills).all();
+  const chatService = new ChatService();
+  const calendarService = new CalendarService();
+  const financesService = new FinancesService();
+
+  const messages = chatService.listMessages();
+  const events = calendarService.listEvents();
+  const bills = financesService.listPayableBills();
 
   return (
     <div className="flex flex-col gap-6">

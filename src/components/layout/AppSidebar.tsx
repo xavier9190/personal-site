@@ -2,26 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Calendar,
-  GraduationCap,
-  MessageSquare,
-  ShoppingBag,
-  Wallet,
-} from 'lucide-react';
-import { getModuleByPath, MODULES, type ModuleId } from '@/config/modules';
+import { getModuleByPath, MODULES } from '@/config/modules';
 import { cn } from '@/lib/utils';
-
-const MODULE_ICONS: Record<ModuleId, typeof MessageSquare> = {
-  chat: MessageSquare,
-  calendar: Calendar,
-  finances: Wallet,
-  academic: GraduationCap,
-  shopping: ShoppingBag,
-};
 
 export function AppSidebar() {
   const pathname = usePathname() || '/';
+  if (pathname.startsWith('/pin')) {
+    return null;
+  }
+
   const activeModule = getModuleByPath(pathname);
 
   return (
@@ -37,7 +26,7 @@ export function AppSidebar() {
 
       <nav className="flex flex-1 flex-col gap-3">
         {MODULES.map((mod) => {
-          const Icon = MODULE_ICONS[mod.id];
+          const Icon = mod.icon;
           const isActive = activeModule?.id === mod.id;
 
           return (

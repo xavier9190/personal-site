@@ -13,7 +13,6 @@ export function assertIntegerCents(cents: Cents): void {
 
 export function formatCentsToBRL(cents: Cents): string {
   assertIntegerCents(cents);
-  // Normalize non-breaking spaces produced by Intl to regular spaces for deterministic rendering/assertions
   return brlFormatter.format(cents / 100).replace(/\u00a0/g, ' ');
 }
 
@@ -41,10 +40,16 @@ export function parseBRLToCents(raw: string | number): Cents {
     throw new Error(`FORMATO MONETÁRIO INVÁLIDO: ${raw}`);
   }
 
-  // Handle Brazilian format (e.g. "1.234,56") vs dot decimal ("1234.56")
-  const normalized = cleaned.includes(',')
-    ? cleaned.replace(/\./g, '').replace(',', '.')
-    : cleaned;
+  let normalized: string;
+  if (cleaned.includes(',')) {
+    // Brazilian decimal format: e.g. "1.234,56" -> "1234.56"
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+    // Brazilian integer thousands without cents: e.g. "1.000" -> "1000"
+    normalized = cleaned.replace(/\./g, '');
+  } else {
+    normalized = cleaned;
+  }
 
   const numeric = Number(normalized);
   if (Number.isNaN(numeric)) {

@@ -1,15 +1,12 @@
-import { getDb } from '@/db';
-import * as schema from '@/db/schema';
+import { ShoppingService } from '@/features/shopping/service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
 export default function ComprasPage() {
-  const db = getDb();
-  const items = db.select().from(schema.shoppingItems).all();
-  const wishlist = items.filter((item) => item.status === 'WISHLIST');
-  const inTransit = items.filter((item) => item.status === 'IN_TRANSIT');
+  const shoppingService = new ShoppingService();
+  const { wishlist, inTransit } = shoppingService.listItemsBySection();
 
   return (
     <div className="flex flex-col gap-6">

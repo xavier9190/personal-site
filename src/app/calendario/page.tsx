@@ -1,5 +1,4 @@
-import { getDb } from '@/db';
-import * as schema from '@/db/schema';
+import { CalendarService } from '@/features/calendar/service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import { SketchCard } from '@/components/sketch/SketchCard';
@@ -8,8 +7,8 @@ import { SketchBadge } from '@/components/sketch/SketchBadge';
 export const dynamic = 'force-dynamic';
 
 export default function CalendarioPage() {
-  const db = getDb();
-  const events = db.select().from(schema.calendarEvents).all();
+  const calendarService = new CalendarService();
+  const events = calendarService.listEvents();
 
   return (
     <div className="flex flex-col gap-6">

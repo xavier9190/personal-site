@@ -2,39 +2,59 @@ import { TZDate } from '@date-fns/tz';
 import { format } from 'date-fns';
 
 export const APP_TIMEZONE = 'America/Recife' as const;
+export type PureDateString = string;
 
 const PURE_DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 const BR_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
-export function assertPureDate(pureDate: string): [string, string, string] {
+function isValidCalendarYMD(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return false;
+  }
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return (
+    dt.getUTCFullYear() === year &&
+    dt.getUTCMonth() === month - 1 &&
+    dt.getUTCDate() === day
+  );
+}
+
+export function assertPureDate(pureDate: PureDateString): [string, string, string] {
   const match = PURE_DATE_REGEX.exec(pureDate.trim());
   if (!match) {
     throw new Error(`DATA PURA INVÁLIDA (ESPERADO YYYY-MM-DD): ${pureDate}`);
   }
-  return [match[1], match[2], match[3]];
+  const [, yearStr, monthStr, dayStr] = match;
+  if (!isValidCalendarYMD(Number(yearStr), Number(monthStr), Number(dayStr))) {
+    throw new Error(`DATA DE CALENDÁRIO INEXISTENTE: ${pureDate}`);
+  }
+  return [yearStr, monthStr, dayStr];
 }
 
-export function formatPureDateBR(pureDate: string): string {
+export function formatPureDateBR(pureDate: PureDateString): string {
   const [year, month, day] = assertPureDate(pureDate);
   return `${day}/${month}/${year}`;
 }
 
-export function formatPureDateShortBR(pureDate: string): string {
+export function formatPureDateShortBR(pureDate: PureDateString): string {
   const [, month, day] = assertPureDate(pureDate);
   return `${day}/${month}`;
 }
 
-export function parseBRDateToPureDate(brDate: string): string {
+export function parseBRDateToPureDate(brDate: string): PureDateString {
   const match = BR_DATE_REGEX.exec(brDate.trim());
   if (!match) {
     throw new Error(`DATA BR INVÁLIDA (ESPERADO DD/MM/AAAA): ${brDate}`);
   }
   const [, day, month, year] = match;
-  return `${year}-${month}-${day}`;
+  const candidate = `${year}-${month}-${day}`;
+  assertPureDate(candidate);
+  return candidate;
 }
 
-export function toRecifeDateString(isoInput: string | Date = new Date()): string {
+export function toRecifeDateString(isoInput: string | Date = new Date()): PureDateString {
   if (typeof isoInput === 'string' && PURE_DATE_REGEX.test(isoInput.trim())) {
+    assertPureDate(isoInput.trim());
     return isoInput.trim();
   }
   const dateObj = typeof isoInput === 'string' ? new Date(isoInput) : isoInput;
@@ -54,7 +74,10 @@ export function toRecifeTimeHHMM(isoInput: string | Date): string {
   return format(tzDate, 'HH:mm');
 }
 
-export function daysBetweenPureDates(fromPureDate: string, toPureDate: string): number {
+export function daysBetweenPureDates(
+  fromPureDate: PureDateString,
+  toPureDate: PureDateString,
+): number {
   const [y1, m1, d1] = assertPureDate(fromPureDate).map(Number);
   const [y2, m2, d2] = assertPureDate(toPureDate).map(Number);
 

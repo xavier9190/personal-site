@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+
+const excalifont = localFont({
+  src: '../../public/fonts/Excalifont-Regular.woff2',
+  variable: '--font-excalifont',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'PERSONAL SITE — HUB PESSOAL',
@@ -22,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className={`dark ${excalifont.variable}`}>
       <body className="min-h-screen bg-[#121212] text-[#f1f3f5] uppercase antialiased">
         <div className="flex min-h-screen flex-col md:flex-row">
           <AppSidebar />

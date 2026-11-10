@@ -1,15 +1,12 @@
-import { getDb } from '@/db';
-import * as schema from '@/db/schema';
+import { AcademicService } from '@/features/academic/service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
 export default function AcademicoPage() {
-  const db = getDb();
-  const projects = db.select().from(schema.academicProjects).all();
-  const inProgress = projects.filter((p) => p.status === 'IN_PROGRESS');
-  const completed = projects.filter((p) => p.status === 'COMPLETED');
+  const academicService = new AcademicService();
+  const { inProgress, completed } = academicService.listProjectsByStatus();
 
   return (
     <div className="flex flex-col gap-6">

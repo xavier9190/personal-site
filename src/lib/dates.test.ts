@@ -17,8 +17,13 @@ describe('dates seam (America/Recife & Pure Dates YYYY-MM-DD)', () => {
     expect(parseBRDateToPureDate('18/11/2026')).toBe('2026-11-18');
   });
 
+  it('rejects impossible calendar dates', () => {
+    expect(() => formatPureDateBR('2026-02-31')).toThrow();
+    expect(() => parseBRDateToPureDate('31/02/2026')).toThrow();
+    expect(() => formatPureDateBR('2026-99-99')).toThrow();
+  });
+
   it('converts UTC ISO timestamps to America/Recife (UTC-3) date and time accurately', () => {
-    // 2026-11-18T01:30:00Z in UTC is 2026-11-17 22:30 in America/Recife (UTC-3)
     const utcTimestamp = '2026-11-18T01:30:00.000Z';
     expect(toRecifeDateString(utcTimestamp)).toBe('2026-11-17');
     expect(toRecifeTimeHHMM(utcTimestamp)).toBe('22:30');
