@@ -4,11 +4,11 @@
 
 **Blocked by:** 03: Finanças (Parte 2) — Contas a Pagar, Cartões de Crédito, Parcelas a Pagar e KPIs (`A Pagar` e `Previsto`), 04: Acadêmico — Projetos em Andamento/Acabados, Links Customizáveis e Modal com Timeline de Marcos (`[OK]`), 05: Compras & Entregas — Wishlist, Fluxo `Comprei ✓` (com Modal `[SIM / NÃO]` para Finanças), `A Caminho` e `Chegou!`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O menu dropdown no cabeçalho alterna entre as 5 visões (`Dia`, `Semana`, `Mês`, `Ano` e `Programação`) e os botões `< Hoje >` navegam pelas datas respeitando o fuso `America/Recife`.
-- [ ] As visões `Dia` e `Semana` exibem grade horária de 24h (`00:00`–`23:59`) com rolagem vertical, renderizando blocos coloridos (`#b2f2bb`, `#ffc9c9`, `#a5d8ff`, `#ffec99`) para diferenciar reuniões e posicionando eventos sobrepostos lado a lado sem ocultá-los.
-- [ ] Permite criar, editar e excluir `Eventos de Agenda` com suporte a repetição (`Não se repete`, `Diariamente`, `Semanalmente`, `Mensalmente`).
-- [ ] O `CalendarService` projeta automaticamente, sem duplicar tabelas no banco, os marcos e entregas finais de `Acadêmico`, os vencimentos de contas/faturas de `Finanças` e as datas estimadas de chegada de `Compras`.
-- [ ] A coluna direita exibe o Mini-Calendário mensal com marcadores `o` nos dias que possuem eventos/prazos e a lista `Agendas de Hoje` (adaptando-se em botão recolhível + lista inferior no mobile).
-- [ ] Testes de integração contra SQLite `:memory:` verificam a projeção unificada dos 4 módulos, a expansão de recorrência e a detecção de conflitos de horário.
+- [x] O menu dropdown no cabeçalho alterna entre as 5 visões (`Dia`, `Semana`, `Mês`, `Ano` e `Programação`) e os botões `< Hoje >` navegam pelas datas respeitando o fuso `America/Recife`.
+- [x] As visões `Dia` e `Semana` exibem grade horária de 24h (`00:00`–`23:59`) com rolagem vertical, renderizando blocos coloridos (`#b2f2bb`, `#ffc9c9`, `#a5d8ff`, `#ffec99`) para diferenciar reuniões e posicionando eventos sobrepostos lado a lado sem ocultá-los.
+- [x] Permite criar, editar e excluir `Eventos de Agenda` com suporte a repetição (`Não se repete`, `Diariamente`, `Semanalmente`, `Mensalmente`).
+- [x] O `CalendarService` projeta automaticamente, sem duplicar tabelas no banco, os marcos e entregas finais de `Acadêmico`, os vencimentos de contas/faturas de `Finanças` e as datas estimadas de chegada de `Compras`.
+- [x] A coluna direita exibe o Mini-Calendário mensal com marcadores `o` nos dias que possuem eventos/prazos e a lista `Agendas de Hoje` (adaptando-se em botão recolhível + lista inferior no mobile).
+- [x] Testes de integração contra SQLite `:memory:` verificam a projeção unificada dos 4 módulos, a expansão de recorrência e a detecção de conflitos de horário.
