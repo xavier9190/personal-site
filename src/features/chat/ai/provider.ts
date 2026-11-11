@@ -1,7 +1,15 @@
+import { GoogleGenAI } from '@google/genai';
 import type { AIMessageInput, AIProvider, ChatContext } from './types';
 
 export class AntigravityAIProvider implements AIProvider {
-  constructor(private readonly workerUrl: string | undefined = process.env.ANTIGRAVITY_AI_URL) {}
+  private readonly geminiApiKey: string | undefined;
+
+  constructor(
+    private readonly workerUrl: string | undefined = process.env.ANTIGRAVITY_AI_URL,
+    geminiApiKey: string | undefined = process.env.GEMINI_API_KEY,
+  ) {
+    this.geminiApiKey = geminiApiKey;
+  }
 
   async *generateStream(
     messages: AIMessageInput[],
@@ -10,7 +18,46 @@ export class AntigravityAIProvider implements AIProvider {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
     const userPrompt = lastUserMessage?.content || '';
 
-    // If external worker/bridge URL is provided, try connecting
+    // 1. If GEMINI_API_KEY is configured, use official Google Gemini SDK
+    if (this.geminiApiKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: this.geminiApiKey });
+        const systemInstruction = `Você é o assistente inteligente integrado do webapp pessoal "Personal Site".
+Regras de estilo e comportamento:
+1. Responda SEMPRE em caixa alta (CAPSLOCK / UPPERCASE) mantendo a estética visual Sketch do projeto.
+2. Seja direto, conciso, útil e em português brasileiro (pt-BR).
+3. Contexto atual:
+- Data atual em Recife: ${context.currentDateRecife}
+- Horário atual em Recife: ${context.currentTimeRecife}
+- Resumo de Finanças: ${context.summaryFinances}
+- Próximas Agendas: ${context.summaryUpcomingEvents}
+4. Você está integrado aos módulos Calendário, Finanças, Acadêmico e Compras. Ajude o usuário a gerenciar sua rotina diária.`;
+
+        const contents = messages.map((m) => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        }));
+
+        const responseStream = await ai.models.generateContentStream({
+          model: 'gemini-2.5-flash',
+          contents,
+          config: {
+            systemInstruction,
+          },
+        });
+
+        for await (const chunk of responseStream) {
+          if (chunk.text) {
+            yield chunk.text.toUpperCase();
+          }
+        }
+        return;
+      } catch (err) {
+        console.error('Gemini API Error, falling back to simulated assistance:', err);
+      }
+    }
+
+    // 2. If external worker/bridge URL is provided, try connecting
     if (this.workerUrl) {
       try {
         const res = await fetch(`${this.workerUrl}/api/chat/stream`, {
@@ -35,7 +82,7 @@ export class AntigravityAIProvider implements AIProvider {
       }
     }
 
-    // Graceful simulated assistance with system context
+    // 3. Graceful simulated assistance with system context
     yield* this.simulateStream(userPrompt, context);
   }
 
