@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export default function CalendarioPage() {
   const service = new CalendarService();
   const today = toRecifeDateString();
-  const range = fetchRange('WEEK', today, today);
+  const range = fetchRange('AGENDA', today, today);
 
   return (
     <CalendarClient

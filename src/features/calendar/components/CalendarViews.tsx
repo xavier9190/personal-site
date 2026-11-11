@@ -215,10 +215,12 @@ export function YearView({ year, items, today, onDayClick }: { year: number; ite
                     key={d}
                     type="button"
                     onClick={() => onDayClick(d)}
-                    className={cn('rounded py-0.5', d === today && 'bg-[#f1f3f5] text-[#121212]', marked.has(d) && d !== today && 'underline')}
+                    className={cn('flex flex-col items-center rounded py-0.5', d === today && 'bg-[#f1f3f5] text-[#121212]')}
                   >
-                    {i + 1}
-                    {marked.has(d) ? 'o' : ''}
+                    <span>{i + 1}</span>
+                    <span className="h-2 text-[8px] leading-none" data-marker={marked.has(d) ? 'o' : ''}>
+                      {marked.has(d) ? 'o' : ''}
+                    </span>
                   </button>
                 );
               })}

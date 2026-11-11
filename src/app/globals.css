@@ -81,3 +81,28 @@ button {
 .sketch-shadow-sm {
   box-shadow: 1px 1px 0px #f1f3f5;
 }
+
+/* Custom Sketch Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #495057 #121212;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #343a40;
+  border-radius: 3px;
+  border: 1px solid #495057;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f1f3f5;
+}

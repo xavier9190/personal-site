@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SketchAddButton } from '@/components/sketch/SketchAddButton';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { cn } from '@/lib/utils';
 import type {
@@ -73,39 +73,39 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
     setModalOpen(true);
   }
 
+  const periodControl = (
+    <div className="flex items-center">
+      <label className="sr-only" htmlFor="period-select">
+        PERÍODO
+      </label>
+      <select
+        id="period-select"
+        value={view.period}
+        onChange={(e) =>
+          updateQuery({
+            period: e.target.value as FinancePeriod,
+            date: '',
+            category: '',
+          })
+        }
+        className="min-h-[44px] rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-1.5 text-xs tracking-wider text-[#f1f3f5] uppercase focus:outline-none"
+      >
+        {(Object.keys(PERIOD_LABELS) as FinancePeriod[]).map((key) => (
+          <option key={key} value={key}>
+            {PERIOD_LABELS[key]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 md:h-full md:overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-4 shrink-0">
-        <div className="flex flex-wrap items-center gap-6">
-          <h1 className="inline-block border-b-2 border-[#f1f3f5] pb-1 text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
-            FINANÇAS
-          </h1>
-
-          <label className="sr-only" htmlFor="period-select">
-            PERÍODO
-          </label>
-          <select
-            id="period-select"
-            value={view.period}
-            onChange={(e) =>
-              updateQuery({
-                period: e.target.value as FinancePeriod,
-                date: '',
-                category: '',
-              })
-            }
-            className="min-h-[40px] rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-1.5 text-xs tracking-wider text-[#f1f3f5] uppercase focus:outline-none"
-          >
-            {(Object.keys(PERIOD_LABELS) as FinancePeriod[]).map((key) => (
-              <option key={key} value={key}>
-                {PERIOD_LABELS[key]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <SketchAddButton onClick={openCreateModal} />
-      </header>
+      <PageHeader
+        moduleId="finances"
+        onAddClick={openCreateModal}
+        titleSuffix={periodControl}
+      />
 
       <div className="shrink-0">
         <FinanceKpiCards

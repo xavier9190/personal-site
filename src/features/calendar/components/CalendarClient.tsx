@@ -33,7 +33,7 @@ export interface CalendarClientProps {
 
 export function CalendarClient({ today, initialItems, events }: CalendarClientProps) {
   const router = useRouter();
-  const [view, setView] = useState<CalendarView>('WEEK');
+  const [view, setView] = useState<CalendarView>('AGENDA');
   const [date, setDate] = useState(today);
   const [items, setItems] = useState(initialItems);
   const [formOpen, setFormOpen] = useState(false);
@@ -84,7 +84,7 @@ export function CalendarClient({ today, initialItems, events }: CalendarClientPr
   const common = { items: viewItems, today, onItemClick, onDayClick: goDay };
 
   const controls = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2">
       <select
         aria-label="VISÃO"
         value={view}
@@ -97,11 +97,11 @@ export function CalendarClient({ today, initialItems, events }: CalendarClientPr
           </option>
         ))}
       </select>
-      <SketchButton aria-label="ANTERIOR" onClick={() => setDate(navigate(view, date, -1))}>
+      <SketchButton aria-label="ANTERIOR" className="min-h-[44px] px-3 text-sm" onClick={() => setDate(navigate(view, date, -1))}>
         &lt;
       </SketchButton>
-      <SketchButton onClick={() => setDate(toRecifeDateString())}>HOJE</SketchButton>
-      <SketchButton aria-label="PRÓXIMO" onClick={() => setDate(navigate(view, date, 1))}>
+      <SketchButton className="min-h-[44px] px-3 text-sm" onClick={() => setDate(toRecifeDateString())}>HOJE</SketchButton>
+      <SketchButton aria-label="PRÓXIMO" className="min-h-[44px] px-3 text-sm" onClick={() => setDate(navigate(view, date, 1))}>
         &gt;
       </SketchButton>
     </div>
@@ -128,18 +128,20 @@ export function CalendarClient({ today, initialItems, events }: CalendarClientPr
     );
 
   return (
-    <div className="flex flex-1 flex-col p-4 md:p-6">
+    <div className="flex flex-1 flex-col gap-4 p-4 md:h-full md:min-h-0 md:overflow-hidden md:p-6">
       <PageHeader
         moduleId="calendar"
         subtitle="AGENDA PRÓPRIA E PROJEÇÃO UNIFICADA (ACADÊMICO, FINANÇAS E COMPRAS)"
         onAddClick={openNew}
-        extraControls={controls}
       />
 
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-4">
-        <section className="flex flex-col lg:col-span-3">
-          <SketchCard className="flex flex-1 flex-col space-y-3">
-            <h2 className="text-base tracking-wider">{titleFor(view, date)}</h2>
+      <div className="grid flex-1 grid-cols-1 gap-6 lg:min-h-0 lg:grid-cols-4">
+        <section className="flex flex-col lg:col-span-3 lg:min-h-0">
+          <SketchCard className="flex flex-1 flex-col space-y-3 lg:min-h-0 lg:overflow-y-auto">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f3f5]/20 pb-2">
+              <h2 className="text-base tracking-wider">{titleFor(view, date)}</h2>
+              {controls}
+            </div>
             {view === 'DAY' && <TimeGridView {...common} days={[date]} />}
             {view === 'WEEK' && <TimeGridView {...common} days={eachDay(range)} />}
             {view === 'MONTH' && <MonthView {...common} range={range} month={month} />}
@@ -148,7 +150,7 @@ export function CalendarClient({ today, initialItems, events }: CalendarClientPr
           </SketchCard>
         </section>
 
-        <aside className="flex flex-col gap-4">
+        <aside className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
           <SketchCard className="space-y-2">
             <h2 className="border-b border-[#f1f3f5] pb-2 text-sm tracking-wider">{titleFor('MONTH', date)}</h2>
             <MiniMonth range={mini} month={month} items={items} today={today} selected={date} onDayClick={setDate} />

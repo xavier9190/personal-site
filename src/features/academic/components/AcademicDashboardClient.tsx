@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SketchAddButton } from '@/components/sketch/SketchAddButton';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import type { AcademicProjectView } from '../service';
 import { ProjectCard } from './ProjectCard';
@@ -44,18 +44,11 @@ export function AcademicDashboardClient({
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:h-full md:min-h-0 md:overflow-hidden md:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="inline-block border-b-2 border-[#f1f3f5] pb-1 text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
-            ACADÊMICO
-          </h1>
-          <p className="mt-1 text-xs text-[#868e96] tracking-wider">
-            PROJETOS EM ANDAMENTO, MARCOS IMPORTANTES E ENTREGAS
-          </p>
-        </div>
-
-        <SketchAddButton onClick={handleOpenCreate} />
-      </header>
+      <PageHeader
+        moduleId="academic"
+        subtitle="PROJETOS EM ANDAMENTO, MARCOS IMPORTANTES E ENTREGAS"
+        onAddClick={handleOpenCreate}
+      />
 
       <section className="flex min-h-0 flex-col space-y-3 md:flex-1">
         <div className="flex items-center justify-between border-b border-[#f1f3f5]/20 pb-2">
