@@ -4,9 +4,9 @@
 
 **Blocked by:** 06: Calendário — 5 Visões em CSS Grid (`Dia`, `Semana`, `Mês`, `Ano`, `Programação`), Eventos e Projeção Unificada
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A coluna central do `Chat` exibe os balões de mensagem alternados (usuário à direita, IA à esquerda), indicador de digitação (`...`), streaming de tokens em tempo real e persistência de conversas no SQLite.
-- [ ] O painel direito da tela de `Chat` exibe em tempo real a lista `Próximas Agendas` (usando a projeção unificada do `CalendarService`) e o bloco `Finanças` com `Saldo` (e botão de olho para ocultar), `Falta Pagar` e `Pago` (usando o `FinancesService`).
-- [ ] Em telas mobile (`< 768px`), um controle no topo alterna entre `[CONVERSA]` e `[RESUMO RÁPIDO]`.
-- [ ] O worker/adapter do **Antigravity SDK (`google-antigravity`)** conecta-se à rota de chat com contexto de data/hora (`America/Recife`) e vocabulário do domínio.
+- [x] A coluna central do `Chat` exibe os balões de mensagem alternados (usuário à direita, IA à esquerda), indicador de digitação (`...`), streaming de tokens em tempo real e persistência de conversas no SQLite.
+- [x] O painel direito da tela de `Chat` exibe em tempo real a lista `Próximas Agendas` (usando a projeção unificada do `CalendarService`) e o bloco `Finanças` com `Saldo` (e botão de olho para ocultar), `Falta Pagar` e `Pago` (usando o `FinancesService`).
+- [x] Em telas mobile (`< 768px` / `< lg`), o painel direito é estritamente ocultado exibindo exclusivamente a conversa central do Chat (`hidden lg:flex`).
+- [x] O worker/adapter do **Antigravity SDK (`google-antigravity`)** conecta-se à rota de chat com contexto de data/hora (`America/Recife`) e vocabulário do domínio.
