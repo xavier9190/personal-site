@@ -42,4 +42,30 @@ describe('POST /api/chat/stream', () => {
     expect(streamText).toContain('data: {"type":"token"');
     expect(streamText).toContain('data: {"type":"done"');
   });
+
+  it('streams response chunks with tool execution when message has tool intent', async () => {
+    const req = new NextRequest('http://localhost:3000/api/chat/stream', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'gastei 45 reais de uber',
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    const reader = res.body?.getReader();
+    expect(reader).toBeDefined();
+
+    const decoder = new TextDecoder();
+    let streamText = '';
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) break;
+      streamText += decoder.decode(value, { stream: true });
+    }
+
+    expect(streamText).toContain('createTransaction');
+    expect(streamText).toContain('CONFIRMED');
+  });
 });

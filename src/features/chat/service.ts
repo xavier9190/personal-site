@@ -134,4 +134,79 @@ export class ChatService {
       .where(eq(schema.chatMessages.threadId, threadId))
       .run();
   }
+
+  // ==========================================
+  // PENDING TOOL ACTIONS & UNDO ENGINE
+  // ==========================================
+
+  createPendingAction(input: {
+    id?: string;
+    threadId: string;
+    toolName: string;
+    argsJson: string;
+    status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE';
+    undoSnapshotJson?: string | null;
+  }): PendingToolActionRecord {
+    const record: PendingToolActionRecord = {
+      id: input.id ?? crypto.randomUUID(),
+      threadId: input.threadId,
+      toolName: input.toolName,
+      argsJson: input.argsJson,
+      status: input.status,
+      undoSnapshotJson: input.undoSnapshotJson ?? null,
+    };
+    this.db.insert(schema.pendingToolActions).values(record).run();
+    return record;
+  }
+
+  getPendingAction(id: string): PendingToolActionRecord | null {
+    const action = this.db
+      .select()
+      .from(schema.pendingToolActions)
+      .where(eq(schema.pendingToolActions.id, id))
+      .get();
+    return action ?? null;
+  }
+
+  updatePendingActionStatus(
+    id: string,
+    status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE',
+    undoSnapshotJson?: string | null,
+  ): PendingToolActionRecord {
+    const existing = this.getPendingAction(id);
+    if (!existing) {
+      throw new Error(`AÇÃO PENDENTE NÃO ENCONTRADA: ${id}`);
+    }
+
+    const updates: Partial<PendingToolActionRecord> = { status };
+    if (undoSnapshotJson !== undefined) {
+      updates.undoSnapshotJson = undoSnapshotJson;
+    }
+
+    this.db
+      .update(schema.pendingToolActions)
+      .set(updates)
+      .where(eq(schema.pendingToolActions.id, id))
+      .run();
+
+    return { ...existing, ...updates };
+  }
+
+  listPendingActions(threadId?: string): PendingToolActionRecord[] {
+    if (threadId) {
+      return this.db
+        .select()
+        .from(schema.pendingToolActions)
+        .where(eq(schema.pendingToolActions.threadId, threadId))
+        .all();
+    }
+    return this.db.select().from(schema.pendingToolActions).all();
+  }
+
+  deletePendingAction(id: string): void {
+    this.db
+      .delete(schema.pendingToolActions)
+      .where(eq(schema.pendingToolActions.id, id))
+      .run();
+  }
 }

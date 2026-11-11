@@ -1,3 +1,5 @@
+import type { ChatAttachment } from './intent';
+
 export interface ChatContext {
   currentDateRecife: string;
   currentTimeRecife: string;
@@ -10,6 +12,7 @@ export interface ChatContext {
 export interface AIMessageInput {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 export interface AIProvider {
