@@ -38,8 +38,9 @@ Regras de estilo e comportamento:
           parts: [{ text: m.content }],
         }));
 
+        const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
         const responseStream = await ai.models.generateContentStream({
-          model: 'gemini-2.5-flash',
+          model: modelName,
           contents,
           config: {
             systemInstruction,
