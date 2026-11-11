@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { formatCentsToBRL } from '@/lib/currency';
@@ -34,6 +35,7 @@ export function TransactionModal({
   const [amountBRL, setAmountBRL] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,6 +89,7 @@ export function TransactionModal({
       setError(result.error ?? 'ERRO AO EXCLUIR TRANSAÇÃO.');
       return;
     }
+    setConfirmDelete(false);
     onClose();
   }
 
@@ -175,7 +178,13 @@ export function TransactionModal({
 
         <div className="flex items-center justify-between gap-3 pt-2">
           {isEditing ? (
-            <SketchButton type="button" variant="outline" disabled={saving} onClick={handleDelete}>
+            <SketchButton
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => setConfirmDelete(true)}
+              className="text-[#ffc9c9] hover:bg-[#ffc9c9]/10"
+            >
               EXCLUIR
             </SketchButton>
           ) : (
@@ -192,6 +201,16 @@ export function TransactionModal({
           </div>
         </div>
       </form>
+
+      {initialTransaction && (
+        <ConfirmDeleteModal
+          isOpen={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={handleDelete}
+          itemDescription={`A TRANSAÇÃO "${initialTransaction.description}" (${formatCentsToBRL(initialTransaction.amountCents)})`}
+          pending={saving}
+        />
+      )}
     </SketchModal>
   );
 }

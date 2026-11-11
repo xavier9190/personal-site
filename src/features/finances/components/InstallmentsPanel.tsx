@@ -1,6 +1,7 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { EmptyState } from '@/components/sketch/EmptyState';
 import type { InstallmentPlanView } from '../service';
 import { advanceInstallmentAction, deleteInstallmentPlanAction } from '../bill-actions';
@@ -18,6 +19,7 @@ export function InstallmentsPanel({
   onOpenInstallment,
 }: InstallmentsPanelProps) {
   const [pending, startTransition] = useTransition();
+  const [deletingPlan, setDeletingPlan] = useState<InstallmentPlanView | null>(null);
 
   return (
     <section className="flex flex-1 min-h-0 flex-col gap-3">
@@ -84,8 +86,8 @@ export function InstallmentsPanel({
                     type="button"
                     title="EXCLUIR PARCELAMENTO"
                     disabled={pending}
-                    onClick={() => startTransition(() => void deleteInstallmentPlanAction(plan.id))}
-                    className="opacity-0 group-hover:opacity-100 text-xs text-[#868e96] hover:text-[#f1f3f5] transition-opacity"
+                    onClick={() => setDeletingPlan(plan)}
+                    className="opacity-0 group-hover:opacity-100 text-xs text-[#868e96] hover:text-[#ffc9c9] transition-opacity"
                   >
                     ✕
                   </button>
@@ -94,6 +96,20 @@ export function InstallmentsPanel({
             </li>
           ))}
         </ul>
+      )}
+
+      {deletingPlan && (
+        <ConfirmDeleteModal
+          isOpen={Boolean(deletingPlan)}
+          onClose={() => setDeletingPlan(null)}
+          onConfirm={() => {
+            const id = deletingPlan.id;
+            setDeletingPlan(null);
+            startTransition(() => void deleteInstallmentPlanAction(id));
+          }}
+          itemDescription={`O PARCELAMENTO "${deletingPlan.description}"`}
+          pending={pending}
+        />
       )}
     </section>
   );

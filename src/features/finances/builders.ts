@@ -29,7 +29,7 @@ export function buildNewTransaction(input: CreateTransactionInput): TransactionR
     occurredAt: parsed.occurredAt,
     status: parsed.status,
     payableBillId: null,
-    shoppingItemId: null,
+    shoppingItemId: parsed.shoppingItemId ?? null,
   };
 }
 

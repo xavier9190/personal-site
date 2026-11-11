@@ -1,7 +1,8 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { formatPureDateBR } from '@/lib/dates';
@@ -27,6 +28,7 @@ export function ProjectDetailsModal({
   onEdit,
 }: ProjectDetailsModalProps) {
   const [pending, startTransition] = useTransition();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!project) return null;
 
@@ -127,8 +129,8 @@ export function ProjectDetailsModal({
           <SketchButton
             variant="ghost"
             disabled={pending}
-            onClick={handleDelete}
-            className="text-xs"
+            onClick={() => setConfirmDelete(true)}
+            className="text-xs text-[#ffc9c9] hover:bg-[#ffc9c9]/10"
           >
             EXCLUIR
           </SketchButton>
@@ -151,6 +153,14 @@ export function ProjectDetailsModal({
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        itemDescription={`O PROJETO "${project.title}"`}
+        pending={pending}
+      />
     </SketchModal>
   );
 }

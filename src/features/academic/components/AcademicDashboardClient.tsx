@@ -43,7 +43,7 @@ export function AcademicDashboardClient({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div className="flex flex-1 flex-col gap-4 p-4 md:h-full md:min-h-0 md:overflow-hidden md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="inline-block border-b-2 border-[#f1f3f5] pb-1 text-xl tracking-wider text-[#f1f3f5] uppercase md:text-2xl">
@@ -57,7 +57,7 @@ export function AcademicDashboardClient({
         <SketchAddButton onClick={handleOpenCreate} />
       </header>
 
-      <section className="flex flex-col space-y-3">
+      <section className="flex min-h-0 flex-col space-y-3 md:flex-1">
         <div className="flex items-center justify-between border-b border-[#f1f3f5]/20 pb-2">
           <h2 className="text-base tracking-wider text-[#f1f3f5]">
             PROJETOS EM ANDAMENTO ({inProgress.length})
@@ -72,7 +72,7 @@ export function AcademicDashboardClient({
             onAction={handleOpenCreate}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:min-h-0 md:grid-cols-2 md:overflow-y-auto lg:grid-cols-3">
             {inProgress.map((project) => (
               <ProjectCard
                 key={project.id}
@@ -85,7 +85,7 @@ export function AcademicDashboardClient({
         )}
       </section>
 
-      <section className="flex flex-col space-y-3 border-t-2 border-[#f1f3f5] pt-4 opacity-80">
+      <section className="flex min-h-0 flex-col space-y-3 border-t-2 border-[#f1f3f5] pt-4 opacity-80 md:flex-1">
         <div className="flex items-center justify-between border-b border-[#f1f3f5]/20 pb-2">
           <h2 className="text-base tracking-wider text-[#868e96]">
             PROJETOS JÁ ACABADOS ({completed.length})
@@ -98,7 +98,7 @@ export function AcademicDashboardClient({
             description="PROJETOS FINALIZADOS FICARÃO ARQUIVADOS NESTA SEÇÃO."
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:min-h-0 md:grid-cols-2 md:overflow-y-auto lg:grid-cols-3">
             {completed.map((project) => (
               <ProjectCard
                 key={project.id}

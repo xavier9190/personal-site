@@ -4,11 +4,11 @@
 
 **Blocked by:** 03: Finanças (Parte 2) — Contas a Pagar, Cartões de Crédito, Parcelas a Pagar e KPIs (`A Pagar` e `Previsto`)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O carrossel `Quero Comprar (Wishlist)` exibe os itens desejados com nome, preço em `R$`, botão `Link ↗` e botão `Comprei ✓`.
-- [ ] Clicar em `Comprei ✓` (ou adicionar diretamente um item comprado) solicita a `Data Estimada de Chegada` e o `App que comprei`, e exibe o modal de confirmação `"VOCÊ JÁ LANÇOU ESSE GASTO EM FINANÇAS?"` com opções `[SIM]` e `[NÃO]`.
-- [ ] Quando o usuário responde `[SIM]`, o item move-se para `Já Comprei (A Caminho)` sem gerar registros em `Finanças`; quando responde `[NÃO]`, coleta a forma de pagamento (à vista ou parcelado) e cria automaticamente a `Transação` ou `Plano de Parcelamento` correspondente no `FinancesService`.
-- [ ] Os cards em `Já Comprei (A Caminho)` exibem a contagem regressiva e data prevista (`FALTA N DIAS (DD/MM)`), barra de progresso hachurada proporcional ao tempo decorrido, nome do app da compra e o alerta monocromático **`(!)`** caso a data atual ultrapasse o prazo estimado sem entrega confirmada.
-- [ ] Clicar em `Chegou!` marca o item como entregue, remove-o do carrossel `Já Comprei (A Caminho)` e disponibiliza-o no modal de histórico de entregues (com opção de reverter).
-- [ ] Testes de integração contra SQLite `:memory:` validam ambos os ramos (`[SIM]` e `[NÃO]`) da integração `Compras → Finanças`, o cálculo de atraso `(!)` e o arquivamento via `Chegou!`.
+- [x] O carrossel `Quero Comprar (Wishlist)` exibe os itens desejados com nome, preço em `R$`, botão `Link ↗` e botão `Comprei ✓`.
+- [x] Clicar em `Comprei ✓` (ou adicionar diretamente um item comprado) solicita a `Data Estimada de Chegada` e o `App que comprei`, e exibe o modal de confirmação `"VOCÊ JÁ LANÇOU ESSE GASTO EM FINANÇAS?"` com opções `[SIM]` e `[NÃO]`.
+- [x] Quando o usuário responde `[SIM]`, o item move-se para `Já Comprei (A Caminho)` sem gerar registros em `Finanças`; quando responde `[NÃO]`, coleta a forma de pagamento (à vista ou parcelado) e cria automaticamente a `Transação` ou `Plano de Parcelamento` correspondente no `FinancesService`.
+- [x] Os cards em `Já Comprei (A Caminho)` exibem a contagem regressiva e data prevista (`FALTA N DIAS (DD/MM)`), barra de progresso hachurada proporcional ao tempo decorrido, nome do app da compra e o alerta monocromático **`(!)`** caso a data atual ultrapasse o prazo estimado sem entrega confirmada.
+- [x] Clicar em `Chegou!` marca o item como entregue, remove-o do carrossel `Já Comprei (A Caminho)` e disponibiliza-o no modal de histórico de entregues (com opção de reverter).
+- [x] Testes de integração contra SQLite `:memory:` validam ambos os ramos (`[SIM]` e `[NÃO]`) da integração `Compras → Finanças`, o cálculo de atraso `(!)` e o arquivamento via `Chegou!`.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { formatPureDateShortBR } from '@/lib/dates';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ export function MilestoneTimeline({ projectId, milestones }: MilestoneTimelinePr
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [deletingMilestone, setDeletingMilestone] = useState<ProjectMilestoneView | null>(null);
 
   function handleToggle(id: string) {
     startTransition(async () => {
@@ -139,8 +141,8 @@ export function MilestoneTimeline({ projectId, milestones }: MilestoneTimelinePr
                   type="button"
                   aria-label="EXCLUIR MARCO"
                   disabled={pending}
-                  onClick={() => handleDelete(m.id)}
-                  className="text-[#868e96] hover:text-[#f1f3f5] text-xs px-1"
+                  onClick={() => setDeletingMilestone(m)}
+                  className="text-[#868e96] hover:text-[#ffc9c9] text-xs px-1"
                 >
                   X
                 </button>
@@ -148,6 +150,20 @@ export function MilestoneTimeline({ projectId, milestones }: MilestoneTimelinePr
             </li>
           ))}
         </ul>
+      )}
+
+      {deletingMilestone && (
+        <ConfirmDeleteModal
+          isOpen={Boolean(deletingMilestone)}
+          onClose={() => setDeletingMilestone(null)}
+          onConfirm={() => {
+            const id = deletingMilestone.id;
+            setDeletingMilestone(null);
+            handleDelete(id);
+          }}
+          itemDescription={`O MARCO "${deletingMilestone.title}"`}
+          pending={pending}
+        />
       )}
     </div>
   );

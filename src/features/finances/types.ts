@@ -42,6 +42,7 @@ export const createTransactionSchema = z.object({
   amountCents: z.number().int().positive('VALOR DEVE SER MAIOR QUE ZERO'),
   occurredAt: pureDateSchema,
   status: z.enum(['PAID', 'PENDING']).default('PAID'),
+  shoppingItemId: z.string().nullable().optional(),
 });
 
 export const updateTransactionSchema = createTransactionSchema.partial();

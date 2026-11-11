@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { EmptyState } from '@/components/sketch/EmptyState';
@@ -22,6 +23,7 @@ export function CreditCardsModal({ isOpen, onClose, cards }: CreditCardsModalPro
   const [dueDay, setDueDay] = useState('15');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deletingCard, setDeletingCard] = useState<CreditCardRecord | null>(null);
 
   async function exec(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -58,9 +60,9 @@ export function CreditCardsModal({ isOpen, onClose, cards }: CreditCardsModalPro
                 </div>
                 <SketchButton
                   variant="ghost"
-                  className="min-h-[36px] px-2 text-[10px]"
+                  className="min-h-[36px] px-2 text-[10px] text-[#868e96] hover:text-[#ffc9c9]"
                   disabled={busy}
-                  onClick={() => exec(() => deleteCreditCardAction(card.id))}
+                  onClick={() => setDeletingCard(card)}
                 >
                   X
                 </SketchButton>
@@ -69,7 +71,13 @@ export function CreditCardsModal({ isOpen, onClose, cards }: CreditCardsModalPro
           </ul>
         )}
 
-        <div className="space-y-3 border-t-2 border-[#f1f3f5] pt-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreate();
+          }}
+          className="space-y-3 border-t-2 border-[#f1f3f5] pt-3"
+        >
           <input
             aria-label="NOME DO CARTÃO"
             placeholder="NOME (EX: NUBANK)"
@@ -102,11 +110,25 @@ export function CreditCardsModal({ isOpen, onClose, cards }: CreditCardsModalPro
           {error && (
             <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
           )}
-          <SketchButton variant="filled" disabled={busy} onClick={handleCreate}>
+          <SketchButton type="submit" variant="filled" disabled={busy}>
             + ADICIONAR CARTÃO
           </SketchButton>
-        </div>
+        </form>
       </div>
+
+      {deletingCard && (
+        <ConfirmDeleteModal
+          isOpen={Boolean(deletingCard)}
+          onClose={() => setDeletingCard(null)}
+          onConfirm={async () => {
+            const id = deletingCard.id;
+            setDeletingCard(null);
+            await exec(() => deleteCreditCardAction(id));
+          }}
+          itemDescription={`O CARTÃO "${deletingCard.name}"`}
+          pending={busy}
+        />
+      )}
     </SketchModal>
   );
 }

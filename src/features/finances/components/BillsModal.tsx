@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { EmptyState } from '@/components/sketch/EmptyState';
@@ -42,6 +43,7 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingBill, setDeletingBill] = useState<PayableBillRecord | null>(null);
 
   async function exec(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -114,9 +116,9 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
                     )}
                     <SketchButton
                       variant="ghost"
-                      className="min-h-[36px] px-2 text-[10px]"
+                      className="min-h-[36px] px-2 text-[10px] text-[#868e96] hover:text-[#ffc9c9]"
                       disabled={busy}
-                      onClick={() => exec(() => deletePayableBillAction(bill.id))}
+                      onClick={() => setDeletingBill(bill)}
                     >
                       X
                     </SketchButton>
@@ -127,7 +129,13 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
           </ul>
         )}
 
-        <div className="space-y-3 border-t-2 border-[#f1f3f5] pt-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreate();
+          }}
+          className="space-y-3 border-t-2 border-[#f1f3f5] pt-3"
+        >
           <input
             aria-label="TÍTULO DA CONTA"
             placeholder="TÍTULO (EX: INTERNET)"
@@ -172,11 +180,25 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
           {error && (
             <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
           )}
-          <SketchButton variant="filled" disabled={busy} onClick={handleCreate}>
+          <SketchButton type="submit" variant="filled" disabled={busy}>
             {editingId ? 'SALVAR EDIÇÃO' : '+ ADICIONAR CONTA'}
           </SketchButton>
-        </div>
+        </form>
       </div>
+
+      {deletingBill && (
+        <ConfirmDeleteModal
+          isOpen={Boolean(deletingBill)}
+          onClose={() => setDeletingBill(null)}
+          onConfirm={async () => {
+            const id = deletingBill.id;
+            setDeletingBill(null);
+            await exec(() => deletePayableBillAction(id));
+          }}
+          itemDescription={`A CONTA "${deletingBill.title}" (${formatCentsToBRL(deletingBill.amountCents)})`}
+          pending={busy}
+        />
+      )}
     </SketchModal>
   );
 }

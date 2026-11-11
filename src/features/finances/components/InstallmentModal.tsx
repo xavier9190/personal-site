@@ -60,7 +60,13 @@ export function InstallmentModal({
 
   return (
     <SketchModal isOpen={isOpen} onClose={onClose} title="NOVO PARCELAMENTO">
-      <div className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+        className="space-y-3"
+      >
         <input
           aria-label="DESCRIÇÃO"
           placeholder="DESCRIÇÃO (EX: MONITOR 144HZ)"
@@ -127,14 +133,14 @@ export function InstallmentModal({
           <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
         )}
         <div className="flex justify-end gap-2">
-          <SketchButton variant="ghost" onClick={onClose}>
+          <SketchButton type="button" variant="ghost" onClick={onClose}>
             CANCELAR
           </SketchButton>
-          <SketchButton variant="filled" disabled={busy} onClick={handleSave}>
+          <SketchButton type="submit" variant="filled" disabled={busy}>
             {busy ? 'SALVANDO...' : 'SALVAR'}
           </SketchButton>
         </div>
-      </div>
+      </form>
     </SketchModal>
   );
 }

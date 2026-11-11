@@ -59,7 +59,7 @@ export function FinanceKpiCards({
       <SketchCard className="space-y-1">
         <span className="text-xs text-[#f1f3f5]">A PAGAR</span>
         <p className="text-center text-xl text-[#f1f3f5]" data-testid="apagar-value">
-          {formatCentsToBRL(toPayCents)}
+          {maskBRLValue(toPayCents, hideBalance)}
         </p>
         <p className="text-center text-[10px] text-[#868e96]">
           {pendingBillsCount === 1 ? 'FALTA 1 CONTA' : `FALTAM ${pendingBillsCount} CONTAS`}
