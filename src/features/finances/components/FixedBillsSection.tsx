@@ -9,10 +9,9 @@ import { togglePayableBillStatusAction } from '../bill-actions';
 export interface FixedBillsSectionProps {
   bills: PayableBillRecord[];
   onOpenBills: () => void;
-  onEditBill?: (bill: PayableBillRecord) => void;
 }
 
-export function FixedBillsSection({ bills, onOpenBills, onEditBill }: FixedBillsSectionProps) {
+export function FixedBillsSection({ bills, onOpenBills }: FixedBillsSectionProps) {
   const [pending, startTransition] = useTransition();
   const fixed = bills.filter((b) => b.billType === 'FIXED_RECURRING');
 
@@ -46,8 +45,7 @@ export function FixedBillsSection({ bills, onOpenBills, onEditBill }: FixedBills
             return (
               <li
                 key={bill.id}
-                onClick={() => onEditBill ? onEditBill(bill) : onOpenBills()}
-                className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#f1f3f5] bg-[#121212] p-4 text-left transition-colors hover:border-[#868e96] cursor-pointer"
+                className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#f1f3f5] bg-[#121212] p-4 text-left transition-colors hover:border-[#868e96]"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm md:text-base font-semibold tracking-wide text-[#f1f3f5] truncate uppercase">
@@ -62,10 +60,9 @@ export function FixedBillsSection({ bills, onOpenBills, onEditBill }: FixedBills
                   aria-label={paid ? 'PAGA — MARCAR COMO PENDENTE' : 'PENDENTE — MARCAR COMO PAGA'}
                   title={paid ? 'PAGA — CLIQUE PARA DESMARCAR' : 'PENDENTE — CLIQUE PARA MARCAR COMO PAGA'}
                   disabled={pending}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startTransition(() => void togglePayableBillStatusAction(bill.id, !paid));
-                  }}
+                  onClick={() =>
+                    startTransition(() => void togglePayableBillStatusAction(bill.id, !paid))
+                  }
                   className="flex h-11 w-11 md:h-12 md:w-12 items-center justify-center rounded-full border-2 border-[#f1f3f5] bg-[#121212] hover:bg-[#1e1e1e] transition-colors shrink-0"
                 >
                   {paid ? (
