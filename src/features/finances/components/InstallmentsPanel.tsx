@@ -31,14 +31,14 @@ export function InstallmentsPanel({
           <button
             type="button"
             onClick={onOpenCards}
-            className="text-[11px] text-[#868e96] hover:text-[#f1f3f5] transition-colors uppercase tracking-wider"
+            className="rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-1.5 text-xs text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors uppercase tracking-wider font-semibold"
           >
             CARTÕES
           </button>
           <button
             type="button"
             onClick={onOpenInstallment}
-            className="rounded-md border border-[#f1f3f5] px-2 py-0.5 text-[11px] text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors uppercase tracking-wider font-medium"
+            className="rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-1.5 text-xs text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors uppercase tracking-wider font-semibold"
           >
             + PARCELA
           </button>
