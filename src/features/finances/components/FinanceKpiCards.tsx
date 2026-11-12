@@ -12,6 +12,7 @@ export interface FinanceKpiCardsProps {
   pendingBillsCount: number;
   forecastCents: number;
   initialHideBalance: boolean;
+  onOpenBills?: () => void;
 }
 
 export function FinanceKpiCards({
@@ -20,6 +21,7 @@ export function FinanceKpiCards({
   pendingBillsCount,
   forecastCents,
   initialHideBalance,
+  onOpenBills,
 }: FinanceKpiCardsProps) {
   const [hideBalance, setHideBalance] = useState<boolean>(initialHideBalance);
   const [isPending, startTransition] = useTransition();
@@ -56,8 +58,17 @@ export function FinanceKpiCards({
         </p>
       </SketchCard>
 
-      <SketchCard className="space-y-1">
-        <span className="text-xs text-[#f1f3f5]">A PAGAR</span>
+      <SketchCard
+        className={`space-y-1 ${onOpenBills ? 'cursor-pointer transition-colors hover:border-[#868e96]' : ''}`}
+        onClick={onOpenBills}
+        title={onOpenBills ? 'CLIQUE PARA GERENCIAR CONTAS A PAGAR' : undefined}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[#f1f3f5]">A PAGAR</span>
+          {onOpenBills && (
+            <span className="text-[10px] text-[#868e96] underline uppercase">GERENCIAR</span>
+          )}
+        </div>
         <p className="text-center text-xl text-[#f1f3f5]" data-testid="apagar-value">
           {maskBRLValue(toPayCents, hideBalance)}
         </p>

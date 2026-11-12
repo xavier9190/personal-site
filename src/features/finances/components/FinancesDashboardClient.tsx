@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type {
   FinancePeriod,
   FinancesDashboardView,
+  PayableBillRecord,
   TransactionRecord,
 } from '../service';
 import { FinanceKpiCards } from './FinanceKpiCards';
@@ -36,8 +37,14 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null);
   const [mobileTab, setMobileTab] = useState<'TX' | 'INST'>('TX');
   const [billsOpen, setBillsOpen] = useState(false);
+  const [editingBill, setEditingBill] = useState<PayableBillRecord | null>(null);
   const [cardsOpen, setCardsOpen] = useState(false);
   const [installmentOpen, setInstallmentOpen] = useState(false);
+
+  function openBillsWithItem(bill?: PayableBillRecord) {
+    setEditingBill(bill ?? null);
+    setBillsOpen(true);
+  }
 
   function updateQuery(next: {
     period?: FinancePeriod;
@@ -114,6 +121,7 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
           pendingBillsCount={view.summary.pendingBillsCount}
           forecastCents={view.summary.forecastCents}
           initialHideBalance={view.hideBalance}
+          onOpenBills={() => openBillsWithItem()}
         />
       </div>
 
@@ -156,19 +164,27 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
         >
           <InstallmentsPanel
             plans={view.installmentPlans}
-            onOpenBills={() => setBillsOpen(true)}
+            onOpenBills={() => openBillsWithItem()}
             onOpenCards={() => setCardsOpen(true)}
             onOpenInstallment={() => setInstallmentOpen(true)}
           />
-          <FixedBillsSection bills={view.payableBills} onOpenBills={() => setBillsOpen(true)} />
+          <FixedBillsSection
+            bills={view.payableBills}
+            onOpenBills={() => openBillsWithItem()}
+            onEditBill={(bill) => openBillsWithItem(bill)}
+          />
         </div>
       </div>
 
       <BillsModal
         isOpen={billsOpen}
-        onClose={() => setBillsOpen(false)}
+        onClose={() => {
+          setBillsOpen(false);
+          setEditingBill(null);
+        }}
         bills={view.payableBills}
         availableCategories={view.availableCategories}
+        initialEditingBill={editingBill}
       />
       <CreditCardsModal
         isOpen={cardsOpen}

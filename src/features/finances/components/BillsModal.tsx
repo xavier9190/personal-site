@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { SketchModal } from '@/components/sketch/SketchModal';
@@ -32,9 +32,16 @@ export interface BillsModalProps {
   onClose: () => void;
   bills: PayableBillRecord[];
   availableCategories: readonly string[];
+  initialEditingBill?: PayableBillRecord | null;
 }
 
-export function BillsModal({ isOpen, onClose, bills, availableCategories }: BillsModalProps) {
+export function BillsModal({
+  isOpen,
+  onClose,
+  bills,
+  availableCategories,
+  initialEditingBill,
+}: BillsModalProps) {
   const [title, setTitle] = useState('');
   const [billType, setBillType] = useState<BillType>('FIXED_RECURRING');
   const [category, setCategory] = useState('MORADIA');
@@ -44,6 +51,16 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingBill, setDeletingBill] = useState<PayableBillRecord | null>(null);
+
+  useEffect(() => {
+    if (initialEditingBill) {
+      startEdit(initialEditingBill);
+    } else {
+      setEditingId(null);
+      setTitle('');
+      setAmountBRL('');
+    }
+  }, [initialEditingBill, isOpen]);
 
   async function exec(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -87,15 +104,16 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
               return (
                 <li
                   key={bill.id}
-                  className="flex items-center justify-between gap-2 border-2 border-[#f1f3f5] px-3 py-2 text-xs"
+                  onClick={() => startEdit(bill)}
+                  className="flex items-center justify-between gap-2 border-2 border-[#f1f3f5] px-3 py-2 text-xs cursor-pointer hover:border-[#868e96] transition-colors"
                 >
                   <div className={paid ? 'text-[#868e96]' : ''}>
-                    <p>{bill.title}</p>
+                    <p className="font-medium">{bill.title}</p>
                     <p className="text-[10px] text-[#868e96]">
                       {bill.dueDate} — {formatCentsToBRL(bill.amountCents)}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <SketchButton
                       variant={paid ? 'filled' : 'outline'}
                       className="min-h-[36px] px-2 text-[10px]"
