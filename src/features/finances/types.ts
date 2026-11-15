@@ -82,12 +82,15 @@ export const createInstallmentPlanSchema = z.object({
   shoppingItemId: z.string().nullable().optional(),
 });
 
+export const updateInstallmentPlanSchema = createInstallmentPlanSchema.partial();
+
 export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;
 export type CreatePayableBillInput = z.input<typeof createPayableBillSchema>;
 export type UpdatePayableBillInput = z.input<typeof updatePayableBillSchema>;
 export type CreateCreditCardInput = z.input<typeof createCreditCardSchema>;
 export type CreateInstallmentPlanInput = z.input<typeof createInstallmentPlanSchema>;
+export type UpdateInstallmentPlanInput = z.input<typeof updateInstallmentPlanSchema>;
 
 export interface InstallmentPlanView extends InstallmentPlanRecord {
   remainingInstallments: number;

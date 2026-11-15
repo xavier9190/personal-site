@@ -414,4 +414,34 @@ describe('FinancesService seam (Transactions, Filters, Balance, Privacy)', () =>
       close();
     }
   });
+
+  it('updates an existing installment plan correctly', () => {
+    const { db, close } = createDbClient(':memory:');
+    const service = new FinancesService(db);
+
+    try {
+      const plan = service.createInstallmentPlan({
+        description: 'Placa de Vídeo',
+        category: 'COMPRAS',
+        totalInstallments: 10,
+        paidInstallments: 1,
+        installmentAmountCents: 35000,
+        creditCardId: null,
+        startMonth: '2026-10',
+      });
+
+      const updated = service.updateInstallmentPlan(plan.id, {
+        description: 'RTX 4070 SUPER',
+        totalInstallments: 12,
+        installmentAmountCents: 32000,
+      });
+
+      expect(updated.description).toBe('RTX 4070 SUPER');
+      expect(updated.totalInstallments).toBe(12);
+      expect(updated.installmentAmountCents).toBe(32000);
+      expect(updated.paidInstallments).toBe(1);
+    } finally {
+      close();
+    }
+  });
 });

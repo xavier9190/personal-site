@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { SketchModal } from '@/components/sketch/SketchModal';
+import { formatCentsToBRL } from '@/lib/currency';
 import { toRecifeDateString } from '@/lib/dates';
-import type { CreditCardRecord } from '../service';
-import { createInstallmentPlanAction } from '../bill-actions';
+import type { CreditCardRecord, InstallmentPlanRecord, InstallmentPlanView } from '../service';
+import {
+  createInstallmentPlanAction,
+  deleteInstallmentPlanAction,
+  updateInstallmentPlanAction,
+} from '../bill-actions';
 import { CategorySelector } from './CategorySelector';
 
 const inputClass =
@@ -16,6 +23,7 @@ export interface InstallmentModalProps {
   onClose: () => void;
   cards: CreditCardRecord[];
   availableCategories: readonly string[];
+  initialPlan?: InstallmentPlanRecord | InstallmentPlanView | null;
 }
 
 export function InstallmentModal({
@@ -23,7 +31,10 @@ export function InstallmentModal({
   onClose,
   cards,
   availableCategories,
+  initialPlan,
 }: InstallmentModalProps) {
+  const router = useRouter();
+  const isEditing = Boolean(initialPlan);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('COMPRAS');
   const [total, setTotal] = useState('');
@@ -33,10 +44,33 @@ export function InstallmentModal({
   const [startMonth, setStartMonth] = useState(toRecifeDateString().slice(0, 7));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialPlan) {
+      setDescription(initialPlan.description);
+      setCategory(initialPlan.category);
+      setTotal(String(initialPlan.totalInstallments));
+      setPaid(String(initialPlan.paidInstallments));
+      setAmountBRL(formatCentsToBRL(initialPlan.installmentAmountCents).replace(/^R\$\s*/, ''));
+      setCardId(initialPlan.creditCardId ?? '');
+      setStartMonth(initialPlan.startMonth);
+    } else {
+      setDescription('');
+      setCategory('COMPRAS');
+      setTotal('');
+      setPaid('0');
+      setAmountBRL('');
+      setCardId('');
+      setStartMonth(toRecifeDateString().slice(0, 7));
+    }
+    setError(null);
+  }, [isOpen, initialPlan]);
 
   async function handleSave() {
     setBusy(true);
-    const res = await createInstallmentPlanAction({
+    const payload = {
       description,
       category,
       totalInstallments: Number(total),
@@ -44,7 +78,10 @@ export function InstallmentModal({
       installmentAmountBRL: amountBRL,
       creditCardId: cardId || null,
       startMonth,
-    });
+    };
+    const res = initialPlan
+      ? await updateInstallmentPlanAction(initialPlan.id, payload)
+      : await createInstallmentPlanAction(payload);
     setBusy(false);
     if (!res.ok) {
       setError(res.error ?? 'ERRO AO SALVAR PARCELAMENTO');
@@ -55,11 +92,30 @@ export function InstallmentModal({
     setPaid('0');
     setAmountBRL('');
     setError(null);
+    router.refresh();
+    onClose();
+  }
+
+  async function handleDelete() {
+    if (!initialPlan) return;
+    setBusy(true);
+    const res = await deleteInstallmentPlanAction(initialPlan.id);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? 'ERRO AO EXCLUIR PARCELAMENTO');
+      return;
+    }
+    setConfirmDelete(false);
+    router.refresh();
     onClose();
   }
 
   return (
-    <SketchModal isOpen={isOpen} onClose={onClose} title="NOVO PARCELAMENTO">
+    <SketchModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? 'EDITAR PARCELAMENTO' : 'NOVO PARCELAMENTO'}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -132,15 +188,41 @@ export function InstallmentModal({
         {error && (
           <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
         )}
-        <div className="flex justify-end gap-2">
-          <SketchButton type="button" variant="ghost" onClick={onClose}>
-            CANCELAR
-          </SketchButton>
-          <SketchButton type="submit" variant="filled" disabled={busy}>
-            {busy ? 'SALVANDO...' : 'SALVAR'}
-          </SketchButton>
+        <div className="flex items-center justify-between gap-2 pt-2">
+          {isEditing ? (
+            <SketchButton
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirmDelete(true)}
+              className="text-[#ffc9c9] hover:bg-[#ffc9c9]/10"
+            >
+              EXCLUIR
+            </SketchButton>
+          ) : (
+            <span />
+          )}
+
+          <div className="flex items-center gap-2">
+            <SketchButton type="button" variant="ghost" disabled={busy} onClick={onClose}>
+              CANCELAR
+            </SketchButton>
+            <SketchButton type="submit" variant="filled" disabled={busy}>
+              {busy ? 'SALVANDO...' : 'SALVAR'}
+            </SketchButton>
+          </div>
         </div>
       </form>
+
+      {initialPlan && (
+        <ConfirmDeleteModal
+          isOpen={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={handleDelete}
+          itemDescription={`O PARCELAMENTO "${initialPlan.description}"`}
+          pending={busy}
+        />
+      )}
     </SketchModal>
   );
 }

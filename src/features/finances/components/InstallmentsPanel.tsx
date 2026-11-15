@@ -11,12 +11,14 @@ export interface InstallmentsPanelProps {
   onOpenBills: () => void;
   onOpenCards: () => void;
   onOpenInstallment: () => void;
+  onEditPlan?: (plan: InstallmentPlanView) => void;
 }
 
 export function InstallmentsPanel({
   plans,
   onOpenCards,
   onOpenInstallment,
+  onEditPlan,
 }: InstallmentsPanelProps) {
   const [pending, startTransition] = useTransition();
   const [deletingPlan, setDeletingPlan] = useState<InstallmentPlanView | null>(null);
@@ -55,7 +57,16 @@ export function InstallmentsPanel({
           {plans.map((plan) => (
             <li
               key={plan.id}
-              className="group relative flex flex-col justify-between rounded-2xl border-2 border-[#f1f3f5] bg-[#121212] p-4 text-left transition-colors hover:border-[#868e96]"
+              role="button"
+              tabIndex={0}
+              onClick={() => onEditPlan?.(plan)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEditPlan?.(plan);
+                }
+              }}
+              className="group relative flex cursor-pointer flex-col justify-between rounded-2xl border-2 border-[#f1f3f5] bg-[#121212] p-4 text-left transition-colors hover:border-[#868e96] focus:outline-none focus:border-[#f1f3f5]"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm md:text-base font-semibold tracking-wide text-[#f1f3f5] truncate uppercase">
@@ -65,7 +76,12 @@ export function InstallmentsPanel({
                   type="button"
                   title="CLIQUE PARA AVANÇAR (+1 PARCELA PAGA)"
                   disabled={pending}
-                  onClick={() => startTransition(() => void advanceInstallmentAction(plan.id))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startTransition(async () => {
+                      await advanceInstallmentAction(plan.id);
+                    });
+                  }}
                   className="rounded-md border border-[#f1f3f5] px-2 py-0.5 text-xs font-semibold tracking-wider text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors shrink-0"
                 >
                   {plan.paidInstallments}/{plan.totalInstallments}
@@ -86,7 +102,10 @@ export function InstallmentsPanel({
                     type="button"
                     title="EXCLUIR PARCELAMENTO"
                     disabled={pending}
-                    onClick={() => setDeletingPlan(plan)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingPlan(plan);
+                    }}
                     className="opacity-0 group-hover:opacity-100 text-xs text-[#868e96] hover:text-[#ffc9c9] transition-opacity"
                   >
                     ✕
@@ -105,7 +124,9 @@ export function InstallmentsPanel({
           onConfirm={() => {
             const id = deletingPlan.id;
             setDeletingPlan(null);
-            startTransition(() => void deleteInstallmentPlanAction(id));
+            startTransition(async () => {
+              await deleteInstallmentPlanAction(id);
+            });
           }}
           itemDescription={`O PARCELAMENTO "${deletingPlan.description}"`}
           pending={pending}

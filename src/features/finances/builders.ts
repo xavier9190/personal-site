@@ -4,6 +4,7 @@ import {
   createInstallmentPlanSchema,
   createPayableBillSchema,
   createTransactionSchema,
+  updateInstallmentPlanSchema,
   updatePayableBillSchema,
   updateTransactionSchema,
   type CreateCreditCardInput,
@@ -14,6 +15,7 @@ import {
   type InstallmentPlanRecord,
   type PayableBillRecord,
   type TransactionRecord,
+  type UpdateInstallmentPlanInput,
   type UpdatePayableBillInput,
   type UpdateTransactionInput,
 } from './types';
@@ -106,5 +108,22 @@ export function buildNewInstallmentPlan(input: CreateInstallmentPlanInput): Inst
     creditCardId: parsed.creditCardId ?? null,
     startMonth: parsed.startMonth,
     shoppingItemId: parsed.shoppingItemId ?? null,
+  };
+}
+
+export function buildUpdatedInstallmentPlan(
+  existing: InstallmentPlanRecord,
+  input: UpdateInstallmentPlanInput,
+): InstallmentPlanRecord {
+  const parsed = updateInstallmentPlanSchema.parse(input);
+  return {
+    ...existing,
+    description: parsed.description ? parsed.description.toUpperCase() : existing.description,
+    category: parsed.category ? parsed.category.toUpperCase() : existing.category,
+    totalInstallments: parsed.totalInstallments ?? existing.totalInstallments,
+    paidInstallments: parsed.paidInstallments ?? existing.paidInstallments,
+    installmentAmountCents: parsed.installmentAmountCents ?? existing.installmentAmountCents,
+    creditCardId: parsed.creditCardId !== undefined ? parsed.creditCardId : existing.creditCardId,
+    startMonth: parsed.startMonth ?? existing.startMonth,
   };
 }

@@ -7,6 +7,7 @@ import {
   buildNewInstallmentPlan,
   buildNewPayableBill,
   buildNewTransaction,
+  buildUpdatedInstallmentPlan,
   buildUpdatedPayableBill,
   buildUpdatedTransaction,
 } from './builders';
@@ -35,6 +36,7 @@ import type {
   PayableBillRecord,
   TransactionFilters,
   TransactionRecord,
+  UpdateInstallmentPlanInput,
   UpdatePayableBillInput,
   UpdateTransactionInput,
 } from './types';
@@ -148,6 +150,14 @@ export class FinancesService {
     const record = buildNewInstallmentPlan(input);
     this.repo.insertInstallmentPlan(record);
     return record;
+  }
+
+  updateInstallmentPlan(id: string, input: UpdateInstallmentPlanInput): InstallmentPlanRecord {
+    const existing = this.repo.getInstallmentPlanById(id);
+    if (!existing) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${id}`);
+    const updated = buildUpdatedInstallmentPlan(existing, input);
+    this.repo.updateInstallmentPlan(id, updated);
+    return updated;
   }
 
   advanceInstallment(id: string): InstallmentPlanRecord {

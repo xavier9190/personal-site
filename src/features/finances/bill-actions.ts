@@ -107,6 +107,22 @@ export async function createInstallmentPlanAction(raw: InstallmentFormPayload) {
   );
 }
 
+export async function updateInstallmentPlanAction(id: string, raw: InstallmentFormPayload) {
+  return run(
+    (s) =>
+      void s.updateInstallmentPlan(id, {
+        description: raw.description,
+        category: raw.category,
+        totalInstallments: raw.totalInstallments,
+        paidInstallments: raw.paidInstallments,
+        installmentAmountCents: parseBRLToCents(raw.installmentAmountBRL),
+        creditCardId: raw.creditCardId,
+        startMonth: raw.startMonth,
+      }),
+    'ERRO AO ATUALIZAR PARCELAMENTO',
+  );
+}
+
 export async function advanceInstallmentAction(id: string) {
   return run((s) => void s.advanceInstallment(id), 'ERRO AO AVANÇAR PARCELA');
 }

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import type {
   FinancePeriod,
   FinancesDashboardView,
+  InstallmentPlanView,
+  PayableBillRecord,
   TransactionRecord,
 } from '../service';
 import { FinanceKpiCards } from './FinanceKpiCards';
@@ -16,6 +18,7 @@ import { TransactionModal } from './TransactionModal';
 import { InstallmentsPanel } from './InstallmentsPanel';
 import { FixedBillsSection } from './FixedBillsSection';
 import { BillsModal } from './BillsModal';
+import { BillModal } from './BillModal';
 import { CreditCardsModal } from './CreditCardsModal';
 import { InstallmentModal } from './InstallmentModal';
 
@@ -38,6 +41,9 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
   const [billsOpen, setBillsOpen] = useState(false);
   const [cardsOpen, setCardsOpen] = useState(false);
   const [installmentOpen, setInstallmentOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<InstallmentPlanView | null>(null);
+  const [billModalOpen, setBillModalOpen] = useState(false);
+  const [editingBill, setEditingBill] = useState<PayableBillRecord | null>(null);
 
   function updateQuery(next: {
     period?: FinancePeriod;
@@ -158,9 +164,26 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
             plans={view.installmentPlans}
             onOpenBills={() => setBillsOpen(true)}
             onOpenCards={() => setCardsOpen(true)}
-            onOpenInstallment={() => setInstallmentOpen(true)}
+            onOpenInstallment={() => {
+              setEditingPlan(null);
+              setInstallmentOpen(true);
+            }}
+            onEditPlan={(plan) => {
+              setEditingPlan(plan);
+              setInstallmentOpen(true);
+            }}
           />
-          <FixedBillsSection bills={view.payableBills} onOpenBills={() => setBillsOpen(true)} />
+          <FixedBillsSection
+            bills={view.payableBills}
+            onOpenBills={() => {
+              setEditingBill(null);
+              setBillModalOpen(true);
+            }}
+            onEditBill={(bill) => {
+              setEditingBill(bill);
+              setBillModalOpen(true);
+            }}
+          />
         </div>
       </div>
 
@@ -177,8 +200,21 @@ export function FinancesDashboardClient({ view }: FinancesDashboardClientProps) 
       />
       <InstallmentModal
         isOpen={installmentOpen}
-        onClose={() => setInstallmentOpen(false)}
+        onClose={() => {
+          setInstallmentOpen(false);
+          setEditingPlan(null);
+        }}
+        initialPlan={editingPlan}
         cards={view.creditCards}
+        availableCategories={view.availableCategories}
+      />
+      <BillModal
+        isOpen={billModalOpen}
+        onClose={() => {
+          setBillModalOpen(false);
+          setEditingBill(null);
+        }}
+        initialBill={editingBill}
         availableCategories={view.availableCategories}
       />
 
