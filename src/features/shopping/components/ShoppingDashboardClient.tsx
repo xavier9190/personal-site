@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { EmptyState } from '@/components/sketch/EmptyState';
@@ -23,6 +23,27 @@ import type { InTransitView, ShoppingItemRecord } from '../service';
 const inputClass =
   'w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-sm uppercase text-[#f1f3f5]';
 
+function SortIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M3 5h11" />
+      <path d="M3 10h9" />
+      <path d="M3 15h7" />
+      <path d="M3 20h5" />
+      <path d="M19 4v16" />
+      <path d="m15 16 4 4 4-4" />
+    </svg>
+  );
+}
+
 export interface ShoppingDashboardClientProps {
   wishlist: ShoppingItemRecord[];
   inTransit: InTransitView[];
@@ -41,7 +62,27 @@ export function ShoppingDashboardClient({
   const [editing, setEditing] = useState<ShoppingItemRecord | null>(null);
   const [buying, setBuying] = useState<ShoppingItemRecord | null>(null);
   const [editingTransit, setEditingTransit] = useState<InTransitView | null>(null);
+  const [transitSortField, setTransitSortField] = useState<'date' | 'price'>('date');
+  const [transitSortDirection, setTransitSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortModalOpen, setSortModalOpen] = useState(false);
   const [, startTransition] = useTransition();
+
+  const sortedInTransit = useMemo(() => {
+    return [...inTransit].sort((a, b) => {
+      if (transitSortField === 'date') {
+        const dateA = a.estimatedDeliveryDate ?? a.purchasedAt ?? '';
+        const dateB = b.estimatedDeliveryDate ?? b.purchasedAt ?? '';
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return transitSortDirection === 'asc'
+          ? dateA.localeCompare(dateB)
+          : dateB.localeCompare(dateA);
+      }
+      const diff = a.priceCents - b.priceCents;
+      return transitSortDirection === 'asc' ? diff : -diff;
+    });
+  }, [inTransit, transitSortField, transitSortDirection]);
 
   const act = (fn: () => Promise<unknown>) => startTransition(async () => void (await fn()));
 
@@ -111,8 +152,19 @@ export function ShoppingDashboardClient({
       </section>
 
       <section className="min-h-0 space-y-3 border-t-2 border-[#f1f3f5] pt-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base tracking-wider">JÁ COMPREI (A CAMINHO) ({inTransit.length})</h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base tracking-wider">JÁ COMPREI (A CAMINHO) ({inTransit.length})</h2>
+            <button
+              type="button"
+              onClick={() => setSortModalOpen(true)}
+              className="flex h-7 w-7 items-center justify-center rounded-md border-2 border-[#f1f3f5] bg-[#121212] text-[#f1f3f5] hover:bg-[#f1f3f5] hover:text-[#121212] transition-colors"
+              title="Organizar por preço ou por data"
+              aria-label="Organizar por preço ou por data"
+            >
+              <SortIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <SketchButton variant="outline" className="min-h-[32px] px-3 text-xs" onClick={() => setHistoryOpen(true)}>
             HISTÓRICO ({delivered.length})
           </SketchButton>
@@ -124,7 +176,7 @@ export function ShoppingDashboardClient({
           />
         ) : (
           <Carousel>
-            {inTransit.map((item) => (
+            {sortedInTransit.map((item) => (
               <Card key={item.id} onClick={() => setEditingTransit(item)}>
                 <p className="flex items-center gap-2 text-sm">
                   {item.name}
@@ -218,6 +270,74 @@ export function ShoppingDashboardClient({
             ))}
           </ul>
         )}
+      </SketchModal>
+
+      <SketchModal
+        isOpen={sortModalOpen}
+        onClose={() => setSortModalOpen(false)}
+        title="ORGANIZAR POR PREÇO OU DATA"
+        className="md:max-w-md"
+      >
+        <div className="space-y-4">
+          <div>
+            <span className="mb-2 block text-xs tracking-wider text-[#868e96] uppercase">
+              ORGANIZAR POR
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <SketchButton
+                type="button"
+                variant={transitSortField === 'date' ? 'filled' : 'outline'}
+                className="min-h-[38px] text-xs font-semibold"
+                onClick={() => setTransitSortField('date')}
+              >
+                DATA DE ENTREGA
+              </SketchButton>
+              <SketchButton
+                type="button"
+                variant={transitSortField === 'price' ? 'filled' : 'outline'}
+                className="min-h-[38px] text-xs font-semibold"
+                onClick={() => setTransitSortField('price')}
+              >
+                PREÇO
+              </SketchButton>
+            </div>
+          </div>
+
+          <div>
+            <span className="mb-2 block text-xs tracking-wider text-[#868e96] uppercase">
+              ORDEM
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <SketchButton
+                type="button"
+                variant={transitSortDirection === 'asc' ? 'filled' : 'outline'}
+                className="min-h-[38px] text-xs font-semibold"
+                onClick={() => setTransitSortDirection('asc')}
+              >
+                {transitSortField === 'date' ? 'CRESCENTE ↑ (MAIS PRÓXIMA)' : 'CRESCENTE ↑ (MENOR VALOR)'}
+              </SketchButton>
+              <SketchButton
+                type="button"
+                variant={transitSortDirection === 'desc' ? 'filled' : 'outline'}
+                className="min-h-[38px] text-xs font-semibold"
+                onClick={() => setTransitSortDirection('desc')}
+              >
+                {transitSortField === 'date' ? 'DECRESCENTE ↓ (MAIS DISTANTE)' : 'DECRESCENTE ↓ (MAIOR VALOR)'}
+              </SketchButton>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <SketchButton
+              type="button"
+              variant="filled"
+              className="min-h-[36px] px-5 text-xs font-semibold"
+              onClick={() => setSortModalOpen(false)}
+            >
+              CONCLUIR
+            </SketchButton>
+          </div>
+        </div>
       </SketchModal>
     </div>
   );
