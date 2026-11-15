@@ -112,8 +112,8 @@ export function MilestoneTimeline({ projectId, milestones }: MilestoneTimelinePr
               key={m.id}
               className="flex items-center justify-between gap-3 rounded-md border border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs"
             >
-              <div className="flex-1 min-w-0">
-                <p className={cn('font-medium truncate', m.isCompleted && 'line-through text-[#868e96]')}>
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <p className={cn('font-medium break-words leading-snug', m.isCompleted && 'line-through text-[#868e96]')}>
                   {m.title}
                 </p>
                 <p className="text-[10px] text-[#868e96]">
