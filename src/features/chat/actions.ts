@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireSessionAuth } from '@/lib/session-auth';
 import { ChatService } from './service';
 import {
   cancelPendingAction,
@@ -25,6 +26,7 @@ function revalidateAllModules() {
 }
 
 export async function createNewThreadAction(title?: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const service = new ChatService();
     const thread = service.createThread(title);
@@ -39,6 +41,7 @@ export async function createNewThreadAction(title?: string): Promise<ActionResul
 }
 
 export async function clearThreadMessagesAction(threadId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const service = new ChatService();
     service.clearThreadMessages(threadId);
@@ -53,6 +56,7 @@ export async function clearThreadMessagesAction(threadId: string): Promise<Actio
 }
 
 export async function confirmPendingActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const result = confirmPendingAction(actionId);
     revalidateAllModules();
@@ -66,6 +70,7 @@ export async function confirmPendingActionAction(actionId: string): Promise<Acti
 }
 
 export async function cancelPendingActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const result = cancelPendingAction(actionId);
     revalidateAllModules();
@@ -79,6 +84,7 @@ export async function cancelPendingActionAction(actionId: string): Promise<Actio
 }
 
 export async function undoActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const result = undoChatAction(actionId);
     revalidateAllModules();
@@ -96,6 +102,7 @@ export async function executeDirectToolAction(
   toolName: string,
   rawArgs: unknown,
 ): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const result = await executeChatTool(toolName, rawArgs, { threadId });
     revalidateAllModules();

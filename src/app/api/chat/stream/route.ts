@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { requireSessionAuth, UnauthorizedSessionError } from '@/lib/session-auth';
 import { ChatService } from '@/features/chat/service';
 import { CalendarService } from '@/features/calendar/service';
 import { FinancesService } from '@/features/finances/service';
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    await requireSessionAuth(req);
     const body = await req.json();
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const attachments: ChatAttachment[] = Array.isArray(body.attachments)
@@ -155,6 +157,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    if (err instanceof UnauthorizedSessionError) {
+      return new Response(JSON.stringify({ ok: false, error: err.message }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : 'ERRO INTERNO' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
