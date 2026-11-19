@@ -27,110 +27,113 @@ export class AcademicService {
     this.repo = new AcademicRepository(db);
   }
 
-  createProject(input: CreateProjectInput): AcademicProjectRecord {
+  async createProject(input: CreateProjectInput): Promise<AcademicProjectRecord> {
     const { record, links } = buildNewProjectRecord(input);
-    this.repo.insertProject(record);
+    await this.repo.insertProject(record);
     for (const link of links) {
-      this.repo.insertLink(link);
+      await this.repo.insertLink(link);
     }
     return record;
   }
 
-  updateProject(id: string, input: UpdateProjectInput): AcademicProjectRecord {
-    const existing = this.repo.getProjectById(id);
+  async updateProject(id: string, input: UpdateProjectInput): Promise<AcademicProjectRecord> {
+    const existing = await this.repo.getProjectById(id);
     if (!existing) throw new Error(`PROJETO NÃO ENCONTRADO: ${id}`);
 
     const { record, links } = buildUpdatedProjectRecord(existing, input);
-    this.repo.updateProject(id, record);
+    await this.repo.updateProject(id, record);
 
     if (links !== undefined) {
-      this.repo.deleteLinksByProjectId(id);
+      await this.repo.deleteLinksByProjectId(id);
       for (const link of links) {
-        this.repo.insertLink(link);
+        await this.repo.insertLink(link);
       }
     }
     return record;
   }
 
-  deleteProject(id: string): void {
-    this.repo.deleteProject(id);
+  async deleteProject(id: string): Promise<void> {
+    await this.repo.deleteProject(id);
   }
 
-  private setProjectStatus(id: string, status: AcademicProjectRecord['status']): void {
-    const existing = this.repo.getProjectById(id);
+  private async setProjectStatus(
+    id: string,
+    status: AcademicProjectRecord['status'],
+  ): Promise<void> {
+    const existing = await this.repo.getProjectById(id);
     if (!existing) throw new Error(`PROJETO NÃO ENCONTRADO: ${id}`);
-    this.repo.updateProject(id, {
+    await this.repo.updateProject(id, {
       ...existing,
       status,
       updatedAt: new Date().toISOString(),
     });
   }
 
-  startProject(id: string): void {
-    this.setProjectStatus(id, 'IN_PROGRESS');
+  async startProject(id: string): Promise<void> {
+    await this.setProjectStatus(id, 'IN_PROGRESS');
   }
 
-  completeProject(id: string): void {
-    this.setProjectStatus(id, 'COMPLETED');
+  async completeProject(id: string): Promise<void> {
+    await this.setProjectStatus(id, 'COMPLETED');
   }
 
-  reopenProject(id: string): void {
-    this.setProjectStatus(id, 'IN_PROGRESS');
+  async reopenProject(id: string): Promise<void> {
+    await this.setProjectStatus(id, 'IN_PROGRESS');
   }
 
-  addMilestone(
+  async addMilestone(
     projectId: string,
     input: Omit<CreateMilestoneInput, 'projectId'>,
-  ): ProjectMilestoneRecord {
+  ): Promise<ProjectMilestoneRecord> {
     const record = buildNewMilestoneRecord(projectId, input);
-    this.repo.insertMilestone(record);
-    this.syncProjectStatusFromMilestones(projectId);
+    await this.repo.insertMilestone(record);
+    await this.syncProjectStatusFromMilestones(projectId);
     return record;
   }
 
-  updateMilestone(id: string, input: UpdateMilestoneInput): ProjectMilestoneRecord {
-    const existing = this.repo.getMilestoneById(id);
+  async updateMilestone(id: string, input: UpdateMilestoneInput): Promise<ProjectMilestoneRecord> {
+    const existing = await this.repo.getMilestoneById(id);
     if (!existing) throw new Error(`MARCO NÃO ENCONTRADO: ${id}`);
 
     const updated = buildUpdatedMilestoneRecord(existing, input);
-    this.repo.updateMilestone(id, updated);
-    this.syncProjectStatusFromMilestones(existing.projectId);
+    await this.repo.updateMilestone(id, updated);
+    await this.syncProjectStatusFromMilestones(existing.projectId);
     return updated;
   }
 
-  toggleMilestone(id: string): ProjectMilestoneRecord {
-    const existing = this.repo.getMilestoneById(id);
+  async toggleMilestone(id: string): Promise<ProjectMilestoneRecord> {
+    const existing = await this.repo.getMilestoneById(id);
     if (!existing) throw new Error(`MARCO NÃO ENCONTRADO: ${id}`);
 
     const updated = { ...existing, isCompleted: !existing.isCompleted };
-    this.repo.updateMilestone(id, updated);
-    this.syncProjectStatusFromMilestones(existing.projectId);
+    await this.repo.updateMilestone(id, updated);
+    await this.syncProjectStatusFromMilestones(existing.projectId);
     return updated;
   }
 
-  deleteMilestone(id: string): void {
-    const existing = this.repo.getMilestoneById(id);
+  async deleteMilestone(id: string): Promise<void> {
+    const existing = await this.repo.getMilestoneById(id);
     if (!existing) return;
-    this.repo.deleteMilestone(id);
-    this.syncProjectStatusFromMilestones(existing.projectId);
+    await this.repo.deleteMilestone(id);
+    await this.syncProjectStatusFromMilestones(existing.projectId);
   }
 
-  private syncProjectStatusFromMilestones(projectId: string): void {
-    const project = this.repo.getProjectById(projectId);
+  private async syncProjectStatusFromMilestones(projectId: string): Promise<void> {
+    const project = await this.repo.getProjectById(projectId);
     if (!project) return;
 
-    const milestones = this.repo.getMilestonesByProjectId(projectId);
+    const milestones = await this.repo.getMilestonesByProjectId(projectId);
     if (milestones.length === 0) return;
 
     const allCompleted = milestones.every((m) => m.isCompleted);
     if (allCompleted && project.status === 'IN_PROGRESS') {
-      this.repo.updateProject(projectId, {
+      await this.repo.updateProject(projectId, {
         ...project,
         status: 'COMPLETED',
         updatedAt: new Date().toISOString(),
       });
     } else if (!allCompleted && project.status === 'COMPLETED') {
-      this.repo.updateProject(projectId, {
+      await this.repo.updateProject(projectId, {
         ...project,
         status: 'IN_PROGRESS',
         updatedAt: new Date().toISOString(),
@@ -138,24 +141,26 @@ export class AcademicService {
     }
   }
 
-  getProjectDetails(id: string): AcademicProjectView | null {
-    const project = this.repo.getProjectById(id);
+  async getProjectDetails(id: string): Promise<AcademicProjectView | null> {
+    const project = await this.repo.getProjectById(id);
     if (!project) return null;
 
-    const links = this.repo.getLinksByProjectId(id);
-    const milestones = this.repo.getMilestonesByProjectId(id);
+    const [links, milestones] = await Promise.all([
+      this.repo.getLinksByProjectId(id),
+      this.repo.getMilestonesByProjectId(id),
+    ]);
     return mapProjectView(project, links, milestones);
   }
 
-  listProjectsByStatus(): {
+  async listProjectsByStatus(): Promise<{
     planned: AcademicProjectView[];
     inProgress: AcademicProjectView[];
     completed: AcademicProjectView[];
-  } {
-    const all = this.repo.getAllProjects();
-    const views = all
-      .map((p) => this.getProjectDetails(p.id)!)
-      .filter(Boolean)
+  }> {
+    const all = await this.repo.getAllProjects();
+    const details = await Promise.all(all.map((p) => this.getProjectDetails(p.id)));
+    const views = details
+      .filter((p): p is AcademicProjectView => p !== null)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return {

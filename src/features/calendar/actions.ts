@@ -10,9 +10,12 @@ export interface CalendarActionResult<T = unknown> {
   error?: string;
 }
 
-function run<T>(fn: (service: CalendarService) => T, fallback: string): CalendarActionResult<T> {
+async function run<T>(
+  fn: (service: CalendarService) => Promise<T>,
+  fallback: string,
+): Promise<CalendarActionResult<T>> {
   try {
-    const data = fn(new CalendarService());
+    const data = await fn(new CalendarService());
     revalidatePath('/calendario');
     revalidatePath('/');
     return { ok: true, data };

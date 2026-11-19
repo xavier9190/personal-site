@@ -1,49 +1,21 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import * as schema from './schema';
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import { getPgDb } from './pg';
+import type * as schema from './schema';
 
-export type AppDatabase = BetterSQLite3Database<typeof schema>;
+export { createPgClient, getPgDb, PG_MIGRATIONS_FOLDER } from './pg';
+export type { PgClientOptions, PgDatabase } from './pg';
 
-const MIGRATIONS_FOLDER = path.join(process.cwd(), 'src', 'db', 'migrations');
+export type AppDatabase = PgDatabase<PgQueryResultHKT, typeof schema>;
 
-export function createDbClient(
-  dbPath: string = process.env.DATABASE_PATH ?? path.join(process.cwd(), 'data', 'personal.db'),
-): {
-  db: AppDatabase;
-  sqlite: Database.Database;
-  close: () => void;
-} {
-  if (dbPath !== ':memory:') {
-    const dir = path.dirname(dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  }
+let dbOverride: AppDatabase | null = null;
 
-  const sqlite = new Database(dbPath);
-  if (dbPath !== ':memory:') {
-    sqlite.pragma('journal_mode = WAL');
-  }
-  sqlite.pragma('foreign_keys = ON');
-
-  const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-
-  return {
-    db,
-    sqlite,
-    close: () => sqlite.close(),
-  };
+export function setDbForTesting(db: AppDatabase | null): void {
+  dbOverride = db;
 }
 
-let singletonClient: ReturnType<typeof createDbClient> | null = null;
-
 export function getDb(): AppDatabase {
-  if (!singletonClient) {
-    singletonClient = createDbClient();
+  if (dbOverride) {
+    return dbOverride;
   }
-  return singletonClient.db;
+  return getPgDb();
 }

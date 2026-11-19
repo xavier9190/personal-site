@@ -1,6 +1,6 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { boolean, integer, pgTable, text } from 'drizzle-orm/pg-core';
 
-export const academicProjects = sqliteTable('academic_projects', {
+export const academicProjects = pgTable('academic_projects', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description').notNull(),
@@ -13,18 +13,18 @@ export const academicProjects = sqliteTable('academic_projects', {
   updatedAt: text('updated_at').notNull(),
 });
 
-export const projectMilestones = sqliteTable('project_milestones', {
+export const projectMilestones = pgTable('project_milestones', {
   id: text('id').primaryKey(),
   projectId: text('project_id')
     .notNull()
     .references(() => academicProjects.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   dueDate: text('due_date').notNull(),
-  isCompleted: integer('is_completed', { mode: 'boolean' }).notNull().default(false),
+  isCompleted: boolean('is_completed').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
 });
 
-export const projectLinks = sqliteTable('project_links', {
+export const projectLinks = pgTable('project_links', {
   id: text('id').primaryKey(),
   projectId: text('project_id')
     .notNull()

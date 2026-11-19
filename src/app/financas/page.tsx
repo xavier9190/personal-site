@@ -28,7 +28,7 @@ export default async function FinancasPage(props: {
     : 'THIS_MONTH';
 
   const financesService = new FinancesService();
-  const view = financesService.getDashboardView({
+  const view = await financesService.getDashboardView({
     period,
     date: resolvedParams.date,
     category: resolvedParams.category,

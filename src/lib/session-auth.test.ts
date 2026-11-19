@@ -1,7 +1,7 @@
-process.env.DATABASE_PATH = ':memory:';
-
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import { setDbForTesting } from '@/db';
+import { createPgliteTestDb } from '@/db/pglite-test';
 import { createPinSessionToken, PIN_COOKIE_NAME } from '@/lib/pin-auth';
 
 const mockCookieGet = vi.fn();
@@ -120,13 +120,28 @@ describe('Session auth guard — requireSessionAuth', () => {
 });
 
 describe('Server Actions defense-in-depth — all 5 Hub Pessoal modules', () => {
+  let closeTestDb: (() => Promise<void>) | null = null;
+
+  beforeAll(async () => {
+    const { db, close } = await createPgliteTestDb();
+    setDbForTesting(db);
+    closeTestDb = close;
+  });
+
+  afterAll(async () => {
+    setDbForTesting(null);
+    if (closeTestDb) {
+      await closeTestDb();
+      closeTestDb = null;
+    }
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-01T12:00:00Z'));
     mockCookieGet.mockReset();
     process.env = {
       ...ORIGINAL_ENV,
-      DATABASE_PATH: ':memory:',
       NODE_ENV: 'production',
       APP_ACCESS_PIN: TEST_PIN,
       AUTH_SECRET: TEST_SECRET,

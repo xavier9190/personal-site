@@ -5,16 +5,20 @@ import { toRecifeDateString } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
-export default function CalendarioPage() {
+export default async function CalendarioPage() {
   const service = new CalendarService();
   const today = toRecifeDateString();
   const range = fetchRange('AGENDA', today, today);
+  const [initialItems, events] = await Promise.all([
+    service.listItems(range.from, range.to),
+    service.listEvents(),
+  ]);
 
   return (
     <CalendarClient
       today={today}
-      initialItems={service.listItems(range.from, range.to)}
-      events={service.listEvents()}
+      initialItems={initialItems}
+      events={events}
     />
   );
 }

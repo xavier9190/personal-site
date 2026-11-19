@@ -7,25 +7,26 @@ import { ChatRightPanel } from '@/features/chat/components/ChatRightPanel';
 
 export const dynamic = 'force-dynamic';
 
-export default function ChatPage() {
+export default async function ChatPage() {
   const chatService = new ChatService();
   const calendarService = new CalendarService();
   const financesService = new FinancesService();
 
-  const defaultThread = chatService.getOrCreateDefaultThread();
-  const messages = chatService.listMessages(defaultThread.id);
-
+  const defaultThread = await chatService.getOrCreateDefaultThread();
   const todayRecife = toRecifeDateString();
   const future30DaysDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const futureRecife = toRecifeDateString(future30DaysDate);
 
-  const upcomingItems = calendarService.listItems(todayRecife, futureRecife);
+  const [messages, upcomingItems, summary, allBills, hideBalance] = await Promise.all([
+    chatService.listMessages(defaultThread.id),
+    calendarService.listItems(todayRecife, futureRecife),
+    financesService.getBalanceSummary(),
+    financesService.listPayableBills(),
+    financesService.getHideBalance(),
+  ]);
 
-  const summary = financesService.getBalanceSummary();
-  const allBills = financesService.listPayableBills();
   const pendingBills = allBills.filter((b) => b.status === 'PENDING');
   const paidBills = allBills.filter((b) => b.status === 'PAID');
-  const hideBalance = financesService.getHideBalance();
 
   return (
     <div className="flex h-[calc(100vh-4rem)] md:h-full w-full min-h-0 flex-1 flex-col lg:flex-row overflow-hidden">

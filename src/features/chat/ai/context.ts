@@ -4,11 +4,11 @@ import type { FinancesService } from '@/features/finances/service';
 import { formatCentsToBRL } from '@/lib/currency';
 import type { ChatContext } from './types';
 
-export function buildChatContext(
+export async function buildChatContext(
   calendarService?: CalendarService,
   financesService?: FinancesService,
   referenceDate: Date = new Date(),
-): ChatContext {
+): Promise<ChatContext> {
   const currentDateRecife = toRecifeDateString(referenceDate);
   const currentTimeRecife = toRecifeTimeHHMM(referenceDate);
 
@@ -18,7 +18,7 @@ export function buildChatContext(
       // 30 days window
       const futureDate = new Date(referenceDate.getTime() + 30 * 24 * 60 * 60 * 1000);
       const toRecife = toRecifeDateString(futureDate);
-      const items = calendarService.listItems(currentDateRecife, toRecife);
+      const items = await calendarService.listItems(currentDateRecife, toRecife);
       if (items.length > 0) {
         summaryUpcomingEvents = items
           .slice(0, 5)
@@ -33,7 +33,7 @@ export function buildChatContext(
   let summaryFinances = 'SALDO: R$ 0,00 | FALTA PAGAR: 0 CONTAS';
   if (financesService) {
     try {
-      const summary = financesService.getBalanceSummary();
+      const summary = await financesService.getBalanceSummary();
       summaryFinances = `SALDO EFETIVO: ${formatCentsToBRL(summary.balanceCents)} | PREVISTO: ${formatCentsToBRL(summary.forecastCents)} | A PAGAR: ${formatCentsToBRL(summary.toPayCents)} (${summary.pendingBillsCount} CONTAS)`;
     } catch {
       // ignore

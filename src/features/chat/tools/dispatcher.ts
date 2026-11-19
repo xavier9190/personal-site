@@ -63,7 +63,7 @@ export class ChatToolDispatcher {
     // ============================================================
     if (toolName === 'listCalendarItems') {
       const args = validatedArgs as { from: string; to: string };
-      const items = this.calendar.listItems(args.from, args.to);
+      const items = await this.calendar.listItems(args.from, args.to);
       return {
         toolName,
         status: 'READ_SUCCESS',
@@ -82,11 +82,11 @@ export class ChatToolDispatcher {
   // ------------------------------------------------------------
   // Staging destructive actions for confirmation
   // ------------------------------------------------------------
-  private stagePendingDeletion(
+  private async stagePendingDeletion(
     toolName: string,
     args: any,
     context: ToolExecutionContext,
-  ): ToolExecutionResult {
+  ): Promise<ToolExecutionResult> {
     const id = args.id;
     let description = `CONFIRMAR EXCLUSÃO: ${id}`;
     let entitySnapshot: any = null;
@@ -94,7 +94,7 @@ export class ChatToolDispatcher {
     switch (toolName) {
       case 'deleteCalendarEvent': {
         try {
-          const ev = this.calendar.getEvent(id);
+          const ev = await this.calendar.getEvent(id);
           description = `EXCLUIR EVENTO: ${ev.title} (${ev.startAt.slice(0, 10)})`;
           entitySnapshot = ev;
         } catch {
@@ -103,7 +103,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteTransaction': {
-        const tx = this.finances.listTransactions().find((t) => t.id === id);
+        const tx = (await this.finances.listTransactions()).find((t) => t.id === id);
         if (tx) {
           description = `EXCLUIR TRANSAÇÃO: ${tx.description} (${formatCentsToBRL(tx.amountCents)})`;
           entitySnapshot = tx;
@@ -113,7 +113,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deletePayableBill': {
-        const bill = this.finances.listPayableBills().find((b) => b.id === id);
+        const bill = (await this.finances.listPayableBills()).find((b) => b.id === id);
         if (bill) {
           description = `EXCLUIR CONTA A PAGAR: ${bill.title} (${formatCentsToBRL(bill.amountCents)})`;
           entitySnapshot = bill;
@@ -123,7 +123,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteInstallmentPlan': {
-        const plan = this.finances.listInstallmentPlans().find((p) => p.id === id);
+        const plan = (await this.finances.listInstallmentPlans()).find((p) => p.id === id);
         if (plan) {
           description = `EXCLUIR PARCELAMENTO: ${plan.description}`;
           entitySnapshot = plan;
@@ -133,7 +133,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteProject': {
-        const project = this.academic.getProjectDetails(id);
+        const project = await this.academic.getProjectDetails(id);
         if (project) {
           description = `EXCLUIR PROJETO: ${project.title}`;
           entitySnapshot = project;
@@ -147,7 +147,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteWishlistItem': {
-        const sections = this.shopping.listItemsBySection();
+        const sections = await this.shopping.listItemsBySection();
         const item =
           sections.wishlist.find((i) => i.id === id) ||
           sections.inTransit.find((i) => i.id === id) ||
@@ -163,7 +163,7 @@ export class ChatToolDispatcher {
     }
 
     const actionId = crypto.randomUUID();
-    const actionRecord = this.chat.createPendingAction({
+    const actionRecord = await this.chat.createPendingAction({
       id: actionId,
       threadId: context.threadId,
       toolName,
@@ -185,11 +185,11 @@ export class ChatToolDispatcher {
   // ------------------------------------------------------------
   // Mutation execution with undo recording
   // ------------------------------------------------------------
-  private executeMutationWithUndo(
+  private async executeMutationWithUndo(
     toolName: string,
     args: any,
     context: ToolExecutionContext,
-  ): ToolExecutionResult {
+  ): Promise<ToolExecutionResult> {
     let description = '';
     let snapshot: any = null;
     let data: any = null;
@@ -197,14 +197,14 @@ export class ChatToolDispatcher {
     switch (toolName) {
       // CALENDAR
       case 'createCalendarEvent': {
-        const ev = this.calendar.createEvent(args);
+        const ev = await this.calendar.createEvent(args);
         description = `CRIOU EVENTO: ${ev.title} (${ev.startAt.slice(0, 10)})`;
         snapshot = { entity: 'CALENDAR_EVENT', operation: 'CREATE', id: ev.id };
         data = ev;
         break;
       }
       case 'updateCalendarEvent': {
-        const before = this.calendar.getEvent(args.id);
+        const before = await this.calendar.getEvent(args.id);
         const colorKey = args.color ?? (before.color in HEX_TO_COLOR ? HEX_TO_COLOR[before.color] : before.color);
         const merged = {
           title: args.title ?? before.title,
@@ -217,7 +217,7 @@ export class ChatToolDispatcher {
           recurrence: args.recurrence ?? (before.recurrenceRule as any),
           recurrenceUntil: args.recurrenceUntil !== undefined ? args.recurrenceUntil : (before.recurrenceUntil ?? undefined),
         };
-        const updated = this.calendar.updateEvent(args.id, merged);
+        const updated = await this.calendar.updateEvent(args.id, merged);
         description = `ATUALIZOU EVENTO: ${updated.title}`;
         snapshot = { entity: 'CALENDAR_EVENT', operation: 'UPDATE', id: args.id, previousData: before };
         data = updated;
@@ -226,32 +226,34 @@ export class ChatToolDispatcher {
 
       // FINANCES
       case 'createTransaction': {
-        const tx = this.finances.createTransaction(args);
+        const tx = await this.finances.createTransaction(args);
         description = `CRIOU TRANSAÇÃO: ${tx.description} (${formatCentsToBRL(tx.amountCents)})`;
         snapshot = { entity: 'TRANSACTION', operation: 'CREATE', id: tx.id };
         data = tx;
         break;
       }
       case 'updateTransaction': {
-        const before = this.finances.listTransactions().find((t) => t.id === args.id);
-        const updated = this.finances.updateTransaction(args.id, args);
+        const before = (await this.finances.listTransactions()).find((t) => t.id === args.id);
+        const updated = await this.finances.updateTransaction(args.id, args);
         description = `ATUALIZOU TRANSAÇÃO: ${updated.description}`;
         snapshot = { entity: 'TRANSACTION', operation: 'UPDATE', id: args.id, previousData: before };
         data = updated;
         break;
       }
       case 'createPayableBill': {
-        const bill = this.finances.createPayableBill(args);
+        const bill = await this.finances.createPayableBill(args);
         description = `CRIOU CONTA A PAGAR: ${bill.title} (${formatCentsToBRL(bill.amountCents)})`;
         snapshot = { entity: 'PAYABLE_BILL', operation: 'CREATE', id: bill.id };
         data = bill;
         break;
       }
       case 'togglePayableBillStatus': {
-        const bill = this.finances.listPayableBills().find((b) => b.id === args.id);
+        const bill = (await this.finances.listPayableBills()).find((b) => b.id === args.id);
         if (!bill) throw new Error(`CONTA NÃO ENCONTRADA: ${args.id}`);
         const willBePaid = args.paid !== undefined ? args.paid : bill.status !== 'PAID';
-        const updated = willBePaid ? this.finances.markBillPaid(args.id) : this.finances.markBillPending(args.id);
+        const updated = willBePaid
+          ? await this.finances.markBillPaid(args.id)
+          : await this.finances.markBillPending(args.id);
         description = `CONTA ${updated.title}: ${updated.status === 'PAID' ? 'PAGA' : 'FALTA PAGAR'}`;
         snapshot = {
           entity: 'PAYABLE_BILL_STATUS',
@@ -264,7 +266,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'createInstallmentPlan': {
-        const plan = this.finances.createInstallmentPlan(args);
+        const plan = await this.finances.createInstallmentPlan(args);
         description = `CRIOU PARCELAMENTO: ${plan.description} (${plan.totalInstallments}X DE ${formatCentsToBRL(plan.installmentAmountCents)})`;
         snapshot = { entity: 'INSTALLMENT_PLAN', operation: 'CREATE', id: plan.id };
         data = plan;
@@ -273,24 +275,24 @@ export class ChatToolDispatcher {
 
       // ACADEMIC
       case 'createProject': {
-        const proj = this.academic.createProject(args);
+        const proj = await this.academic.createProject(args);
         description = `CRIOU PROJETO: ${proj.title}`;
         snapshot = { entity: 'ACADEMIC_PROJECT', operation: 'CREATE', id: proj.id };
         data = proj;
         break;
       }
       case 'updateProject': {
-        const before = this.academic.getProjectDetails(args.id);
-        const proj = this.academic.updateProject(args.id, args);
+        const before = await this.academic.getProjectDetails(args.id);
+        const proj = await this.academic.updateProject(args.id, args);
         description = `ATUALIZOU PROJETO: ${proj.title}`;
         snapshot = { entity: 'ACADEMIC_PROJECT', operation: 'UPDATE', id: args.id, previousData: before };
         data = proj;
         break;
       }
       case 'completeProject': {
-        const before = this.academic.getProjectDetails(args.id);
+        const before = await this.academic.getProjectDetails(args.id);
         if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
-        this.academic.completeProject(args.id);
+        await this.academic.completeProject(args.id);
         description = `CONCLUIU PROJETO: ${before.title}`;
         snapshot = {
           entity: 'ACADEMIC_PROJECT_STATUS',
@@ -302,9 +304,9 @@ export class ChatToolDispatcher {
         break;
       }
       case 'reopenProject': {
-        const before = this.academic.getProjectDetails(args.id);
+        const before = await this.academic.getProjectDetails(args.id);
         if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
-        this.academic.reopenProject(args.id);
+        await this.academic.reopenProject(args.id);
         description = `REABRIU PROJETO: ${before.title}`;
         snapshot = {
           entity: 'ACADEMIC_PROJECT_STATUS',
@@ -316,7 +318,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'addMilestone': {
-        const milestone = this.academic.addMilestone(args.projectId, {
+        const milestone = await this.academic.addMilestone(args.projectId, {
           title: args.title,
           dueDate: args.dueDate,
         });
@@ -326,7 +328,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'toggleMilestone': {
-        const milestone = this.academic.toggleMilestone(args.id);
+        const milestone = await this.academic.toggleMilestone(args.id);
         description = `MARCO ${milestone.title}: ${milestone.isCompleted ? '[OK]' : 'PENDENTE'}`;
         snapshot = {
           entity: 'PROJECT_MILESTONE_STATUS',
@@ -340,25 +342,25 @@ export class ChatToolDispatcher {
 
       // SHOPPING
       case 'addWishlistItem': {
-        const item = this.shopping.addWishlistItem(args);
+        const item = await this.shopping.addWishlistItem(args);
         description = `ADICIONOU À WISHLIST: ${item.name} (${formatCentsToBRL(item.priceCents)})`;
         snapshot = { entity: 'SHOPPING_ITEM', operation: 'CREATE', id: item.id };
         data = item;
         break;
       }
       case 'updateWishlistItem': {
-        const sections = this.shopping.listItemsBySection();
+        const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = this.shopping.updateWishlistItem(args.id, args);
+        const item = await this.shopping.updateWishlistItem(args.id, args);
         description = `ATUALIZOU ITEM WISHLIST: ${item.name}`;
         snapshot = { entity: 'SHOPPING_ITEM', operation: 'UPDATE', id: args.id, previousData: before };
         data = item;
         break;
       }
       case 'markPurchased': {
-        const sections = this.shopping.listItemsBySection();
+        const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = this.shopping.markPurchased(args.id, args);
+        const item = await this.shopping.markPurchased(args.id, args);
         description = `COMPRA REALIZADA: ${item.name} (${item.storeApp})`;
         snapshot = {
           entity: 'SHOPPING_PURCHASED',
@@ -371,25 +373,25 @@ export class ChatToolDispatcher {
         break;
       }
       case 'markDelivered': {
-        const item = this.shopping.markDelivered(args.id, args.deliveredAt);
+        const item = await this.shopping.markDelivered(args.id, args.deliveredAt);
         description = `ENTREGA CONFIRMADA: ${item.name}`;
         snapshot = { entity: 'SHOPPING_DELIVERED', operation: 'UPDATE', id: args.id };
         data = item;
         break;
       }
       case 'revertDelivered': {
-        const item = this.shopping.revertDelivered(args.id);
+        const item = await this.shopping.revertDelivered(args.id);
         description = `REVERTEU PARA A CAMINHO: ${item.name}`;
         snapshot = { entity: 'SHOPPING_REVERT_DELIVERED', operation: 'UPDATE', id: args.id };
         data = item;
         break;
       }
       case 'revertToWishlist': {
-        const sections = this.shopping.listItemsBySection();
+        const sections = await this.shopping.listItemsBySection();
         const before =
           sections.inTransit.find((i) => i.id === args.id) ||
           sections.delivered.find((i) => i.id === args.id);
-        const item = this.shopping.revertToWishlist(args.id);
+        const item = await this.shopping.revertToWishlist(args.id);
         description = `REVERTEU PARA WISHLIST: ${item.name}`;
         snapshot = { entity: 'SHOPPING_REVERT_WISHLIST', operation: 'UPDATE', id: args.id, previousData: before };
         data = item;
@@ -400,7 +402,7 @@ export class ChatToolDispatcher {
     }
 
     const actionId = crypto.randomUUID();
-    this.chat.createPendingAction({
+    await this.chat.createPendingAction({
       id: actionId,
       threadId: context.threadId,
       toolName,
@@ -422,8 +424,8 @@ export class ChatToolDispatcher {
   // ------------------------------------------------------------
   // Confirm pending destructive action
   // ------------------------------------------------------------
-  confirmPendingAction(actionId: string): { ok: boolean; message: string } {
-    const action = this.chat.getPendingAction(actionId);
+  async confirmPendingAction(actionId: string): Promise<{ ok: boolean; message: string }> {
+    const action = await this.chat.getPendingAction(actionId);
     if (!action) {
       throw new Error(`AÇÃO NÃO ENCONTRADA: ${actionId}`);
     }
@@ -435,39 +437,39 @@ export class ChatToolDispatcher {
 
     switch (action.toolName) {
       case 'deleteCalendarEvent':
-        this.calendar.deleteEvent(args.id);
+        await this.calendar.deleteEvent(args.id);
         break;
       case 'deleteTransaction':
-        this.finances.deleteTransaction(args.id);
+        await this.finances.deleteTransaction(args.id);
         break;
       case 'deletePayableBill':
-        this.finances.deletePayableBill(args.id);
+        await this.finances.deletePayableBill(args.id);
         break;
       case 'deleteInstallmentPlan':
-        this.finances.deleteInstallmentPlan(args.id);
+        await this.finances.deleteInstallmentPlan(args.id);
         break;
       case 'deleteProject':
-        this.academic.deleteProject(args.id);
+        await this.academic.deleteProject(args.id);
         break;
       case 'deleteMilestone':
-        this.academic.deleteMilestone(args.id);
+        await this.academic.deleteMilestone(args.id);
         break;
       case 'deleteWishlistItem':
-        this.shopping.deleteItem(args.id);
+        await this.shopping.deleteItem(args.id);
         break;
       default:
         throw new Error(`EXCLUSÃO NÃO RECONHECIDA: ${action.toolName}`);
     }
 
-    this.chat.updatePendingActionStatus(actionId, 'CONFIRMED');
+    await this.chat.updatePendingActionStatus(actionId, 'CONFIRMED');
     return { ok: true, message: 'ITEM EXCLUÍDO COM SUCESSO' };
   }
 
   // ------------------------------------------------------------
   // Cancel pending action
   // ------------------------------------------------------------
-  cancelPendingAction(actionId: string): { ok: boolean; message: string } {
-    const action = this.chat.getPendingAction(actionId);
+  async cancelPendingAction(actionId: string): Promise<{ ok: boolean; message: string }> {
+    const action = await this.chat.getPendingAction(actionId);
     if (!action) {
       throw new Error(`AÇÃO NÃO ENCONTRADA: ${actionId}`);
     }
@@ -475,15 +477,15 @@ export class ChatToolDispatcher {
       return { ok: false, message: `AÇÃO NÃO ESTÁ PENDENTE: ${action.status}` };
     }
 
-    this.chat.updatePendingActionStatus(actionId, 'CANCELLED');
+    await this.chat.updatePendingActionStatus(actionId, 'CANCELLED');
     return { ok: true, message: 'AÇÃO CANCELADA' };
   }
 
   // ------------------------------------------------------------
   // Revert snapshot (UNDO ENGINE)
   // ------------------------------------------------------------
-  undoAction(actionId: string): { ok: boolean; message: string } {
-    const action = this.chat.getPendingAction(actionId);
+  async undoAction(actionId: string): Promise<{ ok: boolean; message: string }> {
+    const action = await this.chat.getPendingAction(actionId);
     if (!action) {
       throw new Error(`AÇÃO NÃO ENCONTRADA: ${actionId}`);
     }
@@ -499,11 +501,11 @@ export class ChatToolDispatcher {
     switch (snapshot.entity) {
       case 'CALENDAR_EVENT': {
         if (snapshot.operation === 'CREATE') {
-          this.calendar.deleteEvent(snapshot.id);
+          await this.calendar.deleteEvent(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
           const p = snapshot.previousData;
           const colorKey: EventColor = (p.color in HEX_TO_COLOR ? HEX_TO_COLOR[p.color] : p.color) as EventColor;
-          this.calendar.updateEvent(snapshot.id, {
+          await this.calendar.updateEvent(snapshot.id, {
             title: p.title,
             date: p.startAt.slice(0, 10),
             startTime: p.allDay ? undefined : p.startAt.slice(11, 16),
@@ -519,96 +521,96 @@ export class ChatToolDispatcher {
       }
       case 'TRANSACTION': {
         if (snapshot.operation === 'CREATE') {
-          this.finances.deleteTransaction(snapshot.id);
+          await this.finances.deleteTransaction(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          this.finances.updateTransaction(snapshot.id, snapshot.previousData);
+          await this.finances.updateTransaction(snapshot.id, snapshot.previousData);
         }
         break;
       }
       case 'PAYABLE_BILL': {
         if (snapshot.operation === 'CREATE') {
-          this.finances.deletePayableBill(snapshot.id);
+          await this.finances.deletePayableBill(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          this.finances.updatePayableBill(snapshot.id, snapshot.previousData);
+          await this.finances.updatePayableBill(snapshot.id, snapshot.previousData);
         }
         break;
       }
       case 'PAYABLE_BILL_STATUS': {
         if (snapshot.previousStatus === 'PAID') {
-          this.finances.markBillPaid(snapshot.id, snapshot.previousPaidAt);
+          await this.finances.markBillPaid(snapshot.id, snapshot.previousPaidAt);
         } else {
-          this.finances.markBillPending(snapshot.id);
+          await this.finances.markBillPending(snapshot.id);
         }
         break;
       }
       case 'INSTALLMENT_PLAN': {
         if (snapshot.operation === 'CREATE') {
-          this.finances.deleteInstallmentPlan(snapshot.id);
+          await this.finances.deleteInstallmentPlan(snapshot.id);
         }
         break;
       }
       case 'ACADEMIC_PROJECT': {
         if (snapshot.operation === 'CREATE') {
-          this.academic.deleteProject(snapshot.id);
+          await this.academic.deleteProject(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          this.academic.updateProject(snapshot.id, snapshot.previousData);
+          await this.academic.updateProject(snapshot.id, snapshot.previousData);
         }
         break;
       }
       case 'ACADEMIC_PROJECT_STATUS': {
         if (snapshot.previousStatus === 'COMPLETED') {
-          this.academic.completeProject(snapshot.id);
+          await this.academic.completeProject(snapshot.id);
         } else {
-          this.academic.reopenProject(snapshot.id);
+          await this.academic.reopenProject(snapshot.id);
         }
         break;
       }
       case 'PROJECT_MILESTONE': {
         if (snapshot.operation === 'CREATE') {
-          this.academic.deleteMilestone(snapshot.id);
+          await this.academic.deleteMilestone(snapshot.id);
         }
         break;
       }
       case 'PROJECT_MILESTONE_STATUS': {
-        this.academic.toggleMilestone(snapshot.id);
+        await this.academic.toggleMilestone(snapshot.id);
         break;
       }
       case 'SHOPPING_ITEM': {
         if (snapshot.operation === 'CREATE') {
-          this.shopping.deleteItem(snapshot.id);
+          await this.shopping.deleteItem(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          this.shopping.updateWishlistItem(snapshot.id, snapshot.previousData);
+          await this.shopping.updateWishlistItem(snapshot.id, snapshot.previousData);
         }
         break;
       }
       case 'SHOPPING_PURCHASED': {
-        this.shopping.revertToWishlist(snapshot.id);
+        await this.shopping.revertToWishlist(snapshot.id);
         if (!snapshot.alreadyLoggedInFinances) {
           // Remove auto-generated finance transactions or installment plans
-          const tx = this.finances
-            .listTransactions()
-            .find((t) => t.shoppingItemId === snapshot.id);
-          if (tx) this.finances.deleteTransaction(tx.id);
+          const tx = (await this.finances.listTransactions()).find(
+            (t) => t.shoppingItemId === snapshot.id,
+          );
+          if (tx) await this.finances.deleteTransaction(tx.id);
 
-          const plan = this.finances
-            .listInstallmentPlans()
-            .find((p) => p.shoppingItemId === snapshot.id);
-          if (plan) this.finances.deleteInstallmentPlan(plan.id);
+          const plan = (await this.finances.listInstallmentPlans()).find(
+            (p) => p.shoppingItemId === snapshot.id,
+          );
+          if (plan) await this.finances.deleteInstallmentPlan(plan.id);
         }
         break;
       }
       case 'SHOPPING_DELIVERED': {
-        this.shopping.revertDelivered(snapshot.id);
+        await this.shopping.revertDelivered(snapshot.id);
         break;
       }
       case 'SHOPPING_REVERT_DELIVERED': {
-        this.shopping.markDelivered(snapshot.id);
+        await this.shopping.markDelivered(snapshot.id);
         break;
       }
       case 'SHOPPING_REVERT_WISHLIST': {
         // Revert wishlist item back to in-transit if previousData was in-transit
         if (snapshot.previousData?.status === 'IN_TRANSIT') {
-          this.shopping.markPurchased(snapshot.id, {
+          await this.shopping.markPurchased(snapshot.id, {
             storeApp: snapshot.previousData.storeApp,
             estimatedDeliveryDate: snapshot.previousData.estimatedDeliveryDate,
             purchasedAt: snapshot.previousData.purchasedAt,
@@ -621,7 +623,7 @@ export class ChatToolDispatcher {
         throw new Error(`REVERSÃO NÃO RECONHECIDA: ${snapshot.entity}`);
     }
 
-    this.chat.updatePendingActionStatus(actionId, 'UNDONE');
+    await this.chat.updatePendingActionStatus(actionId, 'UNDONE');
     return { ok: true, message: 'ALTERAÇÃO DESFEITA COM SUCESSO' };
   }
 }
@@ -635,26 +637,26 @@ export async function executeChatTool(
   return dispatcher.execute(toolName, rawArgs, context);
 }
 
-export function confirmPendingAction(
+export async function confirmPendingAction(
   actionId: string,
   db?: AppDatabase,
-): { ok: boolean; message: string } {
+): Promise<{ ok: boolean; message: string }> {
   const dispatcher = new ChatToolDispatcher(db);
   return dispatcher.confirmPendingAction(actionId);
 }
 
-export function cancelPendingAction(
+export async function cancelPendingAction(
   actionId: string,
   db?: AppDatabase,
-): { ok: boolean; message: string } {
+): Promise<{ ok: boolean; message: string }> {
   const dispatcher = new ChatToolDispatcher(db);
   return dispatcher.cancelPendingAction(actionId);
 }
 
-export function undoChatAction(
+export async function undoChatAction(
   actionId: string,
   db?: AppDatabase,
-): { ok: boolean; message: string } {
+): Promise<{ ok: boolean; message: string }> {
   const dispatcher = new ChatToolDispatcher(db);
   return dispatcher.undoAction(actionId);
 }

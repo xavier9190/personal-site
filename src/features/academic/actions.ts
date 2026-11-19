@@ -16,10 +16,13 @@ export interface ActionResult<T = unknown> {
   error?: string;
 }
 
-function run<T>(fn: (service: AcademicService) => T, fallback: string): ActionResult<T> {
+async function run<T>(
+  fn: (service: AcademicService) => Promise<T>,
+  fallback: string,
+): Promise<ActionResult<T>> {
   try {
     const service = new AcademicService();
-    const data = fn(service);
+    const data = await fn(service);
     revalidatePath('/academico');
     revalidatePath('/calendario');
     revalidatePath('/');

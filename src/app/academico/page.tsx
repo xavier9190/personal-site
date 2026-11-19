@@ -3,9 +3,9 @@ import { AcademicDashboardClient } from '@/features/academic/components/Academic
 
 export const dynamic = 'force-dynamic';
 
-export default function AcademicoPage() {
+export default async function AcademicoPage() {
   const academicService = new AcademicService();
-  const { planned, inProgress, completed } = academicService.listProjectsByStatus();
+  const { planned, inProgress, completed } = await academicService.listProjectsByStatus();
 
   return (
     <AcademicDashboardClient

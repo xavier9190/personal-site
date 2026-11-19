@@ -1,7 +1,7 @@
-process.env.DATABASE_PATH = ':memory:';
-
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
+import { setDbForTesting } from '@/db';
+import { createPgliteTestDb } from '@/db/pglite-test';
 import { createPinSessionToken, PIN_COOKIE_NAME } from '@/lib/pin-auth';
 import { POST } from './route';
 
@@ -10,6 +10,22 @@ const TEST_PIN = 'chave-mestre-chat-stream-2026';
 const TEST_SECRET = 'hmac-secret-chat-stream-2026';
 
 describe('POST /api/chat/stream', () => {
+  let closeTestDb: (() => Promise<void>) | null = null;
+
+  beforeAll(async () => {
+    const { db, close } = await createPgliteTestDb();
+    setDbForTesting(db);
+    closeTestDb = close;
+  });
+
+  afterAll(async () => {
+    setDbForTesting(null);
+    if (closeTestDb) {
+      await closeTestDb();
+      closeTestDb = null;
+    }
+  });
+
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
   });
