@@ -37,7 +37,7 @@ export async function createTransactionAction(
       occurredAt: raw.occurredAt,
       status: 'PAID',
     };
-    service.createTransaction(input);
+    await service.createTransaction(input);
     revalidatePath('/financas');
     revalidatePath('/');
     return { ok: true };
@@ -64,7 +64,7 @@ export async function updateTransactionAction(
       amountCents,
       occurredAt: raw.occurredAt,
     };
-    service.updateTransaction(id, input);
+    await service.updateTransaction(id, input);
     revalidatePath('/financas');
     revalidatePath('/');
     return { ok: true };
@@ -80,7 +80,7 @@ export async function deleteTransactionAction(id: string): Promise<ActionResult>
   await requireSessionAuth();
   try {
     const service = new FinancesService();
-    service.deleteTransaction(id);
+    await service.deleteTransaction(id);
     revalidatePath('/financas');
     revalidatePath('/');
     return { ok: true };
@@ -98,7 +98,7 @@ export async function toggleHideBalanceAction(): Promise<{
 }> {
   await requireSessionAuth();
   const service = new FinancesService();
-  const hideBalance = service.toggleHideBalance();
+  const hideBalance = await service.toggleHideBalance();
   revalidatePath('/financas');
   revalidatePath('/');
   return { ok: true, hideBalance };

@@ -1,51 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { createDbClient } from '@/db';
+import { createPgliteTestDb } from '@/db/pglite-test';
 import { ChatService } from './service';
 
-function setup() {
-  const { db, close } = createDbClient(':memory:');
+async function setup() {
+  const { db, close } = await createPgliteTestDb();
   return {
     close,
     chat: new ChatService(db),
   };
 }
 
-describe('ChatService (SQLite persistence, threads, messages CRUD)', () => {
-  it('creates and lists threads, getting or creating default thread', () => {
-    const { chat, close } = setup();
+describe('ChatService (PostgreSQL persistence, threads, messages CRUD)', () => {
+  it('creates and lists threads, getting or creating default thread', async () => {
+    const { chat, close } = await setup();
     try {
-      expect(chat.listThreads()).toHaveLength(0);
+      expect(await chat.listThreads()).toHaveLength(0);
 
       // getOrCreateDefaultThread creates one if none exists
-      const defThread = chat.getOrCreateDefaultThread();
+      const defThread = await chat.getOrCreateDefaultThread();
       expect(defThread.id).toBeDefined();
       expect(defThread.title).toBe('CONVERSA PRINCIPAL');
-      expect(chat.listThreads()).toHaveLength(1);
+      expect(await chat.listThreads()).toHaveLength(1);
 
       // Calling again returns the existing one
-      const sameThread = chat.getOrCreateDefaultThread();
+      const sameThread = await chat.getOrCreateDefaultThread();
       expect(sameThread.id).toBe(defThread.id);
 
       // Create explicit thread
-      const custom = chat.createThread('Planejamento Semanal');
+      const custom = await chat.createThread('Planejamento Semanal');
       expect(custom.title).toBe('PLANEJAMENTO SEMANAL');
-      expect(chat.listThreads()).toHaveLength(2);
+      expect(await chat.listThreads()).toHaveLength(2);
 
       // Get thread by id
-      const fetched = chat.getThread(custom.id);
+      const fetched = await chat.getThread(custom.id);
       expect(fetched?.id).toBe(custom.id);
       expect(fetched?.title).toBe('PLANEJAMENTO SEMANAL');
     } finally {
-      close();
+      await close();
     }
   });
 
-  it('adds and lists messages (USER, ASSISTANT, SYSTEM) in chronological order', () => {
-    const { chat, close } = setup();
+  it('adds and lists messages (USER, ASSISTANT, SYSTEM) in chronological order', async () => {
+    const { chat, close } = await setup();
     try {
-      const thread = chat.createThread('Conversa');
+      const thread = await chat.createThread('Conversa');
 
-      const msgUser = chat.addMessage({
+      const msgUser = await chat.addMessage({
         threadId: thread.id,
         role: 'USER',
         content: 'Olá assistente!',
@@ -55,21 +55,21 @@ describe('ChatService (SQLite persistence, threads, messages CRUD)', () => {
       expect(msgUser.content).toBe('Olá assistente!');
       expect(msgUser.threadId).toBe(thread.id);
 
-      const msgAi = chat.addMessage({
+      const msgAi = await chat.addMessage({
         threadId: thread.id,
         role: 'ASSISTANT',
         content: 'Olá! Como posso ajudar você hoje?',
       });
       expect(msgAi.role).toBe('ASSISTANT');
 
-      const msgSys = chat.addMessage({
+      const msgSys = await chat.addMessage({
         threadId: thread.id,
         role: 'SYSTEM',
         content: 'Contexto de fuso America/Recife.',
       });
       expect(msgSys.role).toBe('SYSTEM');
 
-      const messages = chat.listMessages(thread.id);
+      const messages = await chat.listMessages(thread.id);
       expect(messages).toHaveLength(3);
       expect(messages.map((m) => m.role)).toEqual(['USER', 'ASSISTANT', 'SYSTEM']);
       expect(messages.map((m) => m.content)).toEqual([
@@ -78,68 +78,68 @@ describe('ChatService (SQLite persistence, threads, messages CRUD)', () => {
         'Contexto de fuso America/Recife.',
       ]);
     } finally {
-      close();
+      await close();
     }
   });
 
-  it('validates empty content and non-existent thread', () => {
-    const { chat, close } = setup();
+  it('validates empty content and non-existent thread', async () => {
+    const { chat, close } = await setup();
     try {
-      const thread = chat.createThread('Teste');
+      const thread = await chat.createThread('Teste');
 
-      expect(() =>
+      await expect(
         chat.addMessage({
           threadId: thread.id,
           role: 'USER',
           content: '   ',
         }),
-      ).toThrow();
+      ).rejects.toThrow();
 
-      expect(() =>
+      await expect(
         chat.addMessage({
           threadId: 'non-existent-id',
           role: 'USER',
           content: 'Validação de FK',
         }),
-      ).toThrow();
+      ).rejects.toThrow();
     } finally {
-      close();
+      await close();
     }
   });
 
-  it('deletes message and clears thread messages', () => {
-    const { chat, close } = setup();
+  it('deletes message and clears thread messages', async () => {
+    const { chat, close } = await setup();
     try {
-      const thread = chat.createThread('Teste Limpeza');
-      const m1 = chat.addMessage({ threadId: thread.id, role: 'USER', content: 'M1' });
-      const m2 = chat.addMessage({ threadId: thread.id, role: 'ASSISTANT', content: 'M2' });
+      const thread = await chat.createThread('Teste Limpeza');
+      const m1 = await chat.addMessage({ threadId: thread.id, role: 'USER', content: 'M1' });
+      const m2 = await chat.addMessage({ threadId: thread.id, role: 'ASSISTANT', content: 'M2' });
 
-      chat.deleteMessage(m1.id);
-      let msgs = chat.listMessages(thread.id);
+      await chat.deleteMessage(m1.id);
+      let msgs = await chat.listMessages(thread.id);
       expect(msgs).toHaveLength(1);
       expect(msgs[0].id).toBe(m2.id);
 
-      chat.clearThreadMessages(thread.id);
-      msgs = chat.listMessages(thread.id);
+      await chat.clearThreadMessages(thread.id);
+      msgs = await chat.listMessages(thread.id);
       expect(msgs).toHaveLength(0);
     } finally {
-      close();
+      await close();
     }
   });
 
-  it('cascades message deletion when a thread is deleted', () => {
-    const { chat, close } = setup();
+  it('cascades message deletion when a thread is deleted', async () => {
+    const { chat, close } = await setup();
     try {
-      const thread = chat.createThread('Thread Deletada');
-      chat.addMessage({ threadId: thread.id, role: 'USER', content: 'Msg a ser cascateada' });
+      const thread = await chat.createThread('Thread Deletada');
+      await chat.addMessage({ threadId: thread.id, role: 'USER', content: 'Msg a ser cascateada' });
 
-      expect(chat.listMessages(thread.id)).toHaveLength(1);
+      expect(await chat.listMessages(thread.id)).toHaveLength(1);
 
-      chat.deleteThread(thread.id);
-      expect(chat.getThread(thread.id)).toBeNull();
-      expect(chat.listMessages(thread.id)).toHaveLength(0);
+      await chat.deleteThread(thread.id);
+      expect(await chat.getThread(thread.id)).toBeNull();
+      expect(await chat.listMessages(thread.id)).toHaveLength(0);
     } finally {
-      close();
+      await close();
     }
   });
 });

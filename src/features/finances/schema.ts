@@ -1,7 +1,7 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { boolean, integer, pgTable, text } from 'drizzle-orm/pg-core';
 import { shoppingItems } from '@/features/shopping/schema';
 
-export const creditCards = sqliteTable('credit_cards', {
+export const creditCards = pgTable('credit_cards', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   closingDay: integer('closing_day').notNull(),
@@ -9,7 +9,7 @@ export const creditCards = sqliteTable('credit_cards', {
   limitCents: integer('limit_cents'),
 });
 
-export const installmentPlans = sqliteTable('installment_plans', {
+export const installmentPlans = pgTable('installment_plans', {
   id: text('id').primaryKey(),
   description: text('description').notNull(),
   category: text('category').notNull(),
@@ -25,7 +25,7 @@ export const installmentPlans = sqliteTable('installment_plans', {
   }),
 });
 
-export const payableBills = sqliteTable('payable_bills', {
+export const payableBills = pgTable('payable_bills', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   billType: text('bill_type', {
@@ -42,7 +42,7 @@ export const payableBills = sqliteTable('payable_bills', {
   }),
 });
 
-export const transactions = sqliteTable('transactions', {
+export const transactions = pgTable('transactions', {
   id: text('id').primaryKey(),
   type: text('type', { enum: ['INCOME', 'EXPENSE'] }).notNull(),
   description: text('description').notNull(),
@@ -58,7 +58,7 @@ export const transactions = sqliteTable('transactions', {
   }),
 });
 
-export const financePreferences = sqliteTable('finance_preferences', {
+export const financePreferences = pgTable('finance_preferences', {
   id: text('id').primaryKey(),
-  hideBalance: integer('hide_balance', { mode: 'boolean' }).notNull().default(false),
+  hideBalance: boolean('hide_balance').notNull().default(false),
 });

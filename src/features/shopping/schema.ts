@@ -1,6 +1,6 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, pgTable, text } from 'drizzle-orm/pg-core';
 
-export const shoppingItems = sqliteTable('shopping_items', {
+export const shoppingItems = pgTable('shopping_items', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   priceCents: integer('price_cents').notNull(),

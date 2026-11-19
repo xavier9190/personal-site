@@ -1,13 +1,13 @@
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { pgTable, text } from 'drizzle-orm/pg-core';
 
-export const chatThreads = sqliteTable('chat_threads', {
+export const chatThreads = pgTable('chat_threads', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
 
-export const chatMessages = sqliteTable('chat_messages', {
+export const chatMessages = pgTable('chat_messages', {
   id: text('id').primaryKey(),
   threadId: text('thread_id')
     .notNull()
@@ -19,7 +19,7 @@ export const chatMessages = sqliteTable('chat_messages', {
   createdAt: text('created_at').notNull(),
 });
 
-export const pendingToolActions = sqliteTable('pending_tool_actions', {
+export const pendingToolActions = pgTable('pending_tool_actions', {
   id: text('id').primaryKey(),
   threadId: text('thread_id')
     .notNull()

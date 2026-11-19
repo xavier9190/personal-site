@@ -10,82 +10,78 @@ import type {
 export class AcademicRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  insertProject(record: AcademicProjectRecord): void {
-    this.db.insert(schema.academicProjects).values(record).run();
+  async insertProject(record: AcademicProjectRecord): Promise<void> {
+    await this.db.insert(schema.academicProjects).values(record);
   }
 
-  getProjectById(id: string): AcademicProjectRecord | undefined {
-    return this.db
+  async getProjectById(id: string): Promise<AcademicProjectRecord | undefined> {
+    const [row] = await this.db
       .select()
       .from(schema.academicProjects)
-      .where(eq(schema.academicProjects.id, id))
-      .get();
+      .where(eq(schema.academicProjects.id, id));
+    return row;
   }
 
-  getAllProjects(): AcademicProjectRecord[] {
-    return this.db.select().from(schema.academicProjects).all();
+  async getAllProjects(): Promise<AcademicProjectRecord[]> {
+    return this.db.select().from(schema.academicProjects);
   }
 
-  updateProject(id: string, record: AcademicProjectRecord): void {
-    this.db
+  async updateProject(id: string, record: AcademicProjectRecord): Promise<void> {
+    await this.db
       .update(schema.academicProjects)
       .set(record)
-      .where(eq(schema.academicProjects.id, id))
-      .run();
+      .where(eq(schema.academicProjects.id, id));
   }
 
-  deleteProject(id: string): void {
-    this.db.delete(schema.projectMilestones).where(eq(schema.projectMilestones.projectId, id)).run();
-    this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.projectId, id)).run();
-    this.db.delete(schema.academicProjects).where(eq(schema.academicProjects.id, id)).run();
+  async deleteProject(id: string): Promise<void> {
+    await this.db.delete(schema.projectMilestones).where(eq(schema.projectMilestones.projectId, id));
+    await this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.projectId, id));
+    await this.db.delete(schema.academicProjects).where(eq(schema.academicProjects.id, id));
   }
 
-  insertLink(record: ProjectLinkRecord): void {
-    this.db.insert(schema.projectLinks).values(record).run();
+  async insertLink(record: ProjectLinkRecord): Promise<void> {
+    await this.db.insert(schema.projectLinks).values(record);
   }
 
-  getLinksByProjectId(projectId: string): ProjectLinkRecord[] {
+  async getLinksByProjectId(projectId: string): Promise<ProjectLinkRecord[]> {
     return this.db
       .select()
       .from(schema.projectLinks)
-      .where(eq(schema.projectLinks.projectId, projectId))
-      .all();
+      .where(eq(schema.projectLinks.projectId, projectId));
   }
 
-  deleteLinksByProjectId(projectId: string): void {
-    this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.projectId, projectId)).run();
+  async deleteLinksByProjectId(projectId: string): Promise<void> {
+    await this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.projectId, projectId));
   }
 
-  insertMilestone(record: ProjectMilestoneRecord): void {
-    this.db.insert(schema.projectMilestones).values(record).run();
+  async insertMilestone(record: ProjectMilestoneRecord): Promise<void> {
+    await this.db.insert(schema.projectMilestones).values(record);
   }
 
-  getMilestoneById(id: string): ProjectMilestoneRecord | undefined {
-    return this.db
+  async getMilestoneById(id: string): Promise<ProjectMilestoneRecord | undefined> {
+    const [row] = await this.db
       .select()
       .from(schema.projectMilestones)
-      .where(eq(schema.projectMilestones.id, id))
-      .get();
+      .where(eq(schema.projectMilestones.id, id));
+    return row;
   }
 
-  getMilestonesByProjectId(projectId: string): ProjectMilestoneRecord[] {
+  async getMilestonesByProjectId(projectId: string): Promise<ProjectMilestoneRecord[]> {
     return this.db
       .select()
       .from(schema.projectMilestones)
       .where(eq(schema.projectMilestones.projectId, projectId))
-      .orderBy(asc(schema.projectMilestones.sortOrder), asc(schema.projectMilestones.dueDate))
-      .all();
+      .orderBy(asc(schema.projectMilestones.sortOrder), asc(schema.projectMilestones.dueDate));
   }
 
-  updateMilestone(id: string, record: ProjectMilestoneRecord): void {
-    this.db
+  async updateMilestone(id: string, record: ProjectMilestoneRecord): Promise<void> {
+    await this.db
       .update(schema.projectMilestones)
       .set(record)
-      .where(eq(schema.projectMilestones.id, id))
-      .run();
+      .where(eq(schema.projectMilestones.id, id));
   }
 
-  deleteMilestone(id: string): void {
-    this.db.delete(schema.projectMilestones).where(eq(schema.projectMilestones.id, id)).run();
+  async deleteMilestone(id: string): Promise<void> {
+    await this.db.delete(schema.projectMilestones).where(eq(schema.projectMilestones.id, id));
   }
 }

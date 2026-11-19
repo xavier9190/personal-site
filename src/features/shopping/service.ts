@@ -53,23 +53,29 @@ export class ShoppingService {
     this.finances = new FinancesService(db);
   }
 
-  private getItem(id: string): ShoppingItemRecord {
-    const item = this.db
+  private async getItem(id: string): Promise<ShoppingItemRecord> {
+    const [item] = await this.db
       .select()
       .from(schema.shoppingItems)
-      .where(eq(schema.shoppingItems.id, id))
-      .get();
+      .where(eq(schema.shoppingItems.id, id));
     if (!item) throw new Error(`ITEM NÃO ENCONTRADO: ${id}`);
     return item;
   }
 
-  private patch(id: string, values: Partial<ShoppingItemRecord>): ShoppingItemRecord {
-    this.db.update(schema.shoppingItems).set(values).where(eq(schema.shoppingItems.id, id)).run();
+  private async patch(
+    id: string,
+    values: Partial<ShoppingItemRecord>,
+  ): Promise<ShoppingItemRecord> {
+    await this.db.update(schema.shoppingItems).set(values).where(eq(schema.shoppingItems.id, id));
     return this.getItem(id);
   }
 
-  listItemsBySection() {
-    const all = this.db.select().from(schema.shoppingItems).all();
+  async listItemsBySection(): Promise<{
+    wishlist: ShoppingItemRecord[];
+    inTransit: ShoppingItemRecord[];
+    delivered: ShoppingItemRecord[];
+  }> {
+    const all = await this.db.select().from(schema.shoppingItems);
     return {
       wishlist: all.filter((item) => item.status === 'WISHLIST'),
       inTransit: all.filter((item) => item.status === 'IN_TRANSIT'),
@@ -77,7 +83,7 @@ export class ShoppingService {
     };
   }
 
-  addWishlistItem(input: AddWishlistItemInput): ShoppingItemRecord {
+  async addWishlistItem(input: AddWishlistItemInput): Promise<ShoppingItemRecord> {
     const name = input.name.trim();
     if (!name) throw new Error('NOME OBRIGATÓRIO');
     if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
@@ -95,17 +101,17 @@ export class ShoppingService {
       estimatedDeliveryDate: null,
       deliveredAt: null,
     };
-    this.db.insert(schema.shoppingItems).values(record).run();
+    await this.db.insert(schema.shoppingItems).values(record);
     return record;
   }
 
-  updateWishlistItem(id: string, input: AddWishlistItemInput): ShoppingItemRecord {
+  async updateWishlistItem(id: string, input: AddWishlistItemInput): Promise<ShoppingItemRecord> {
     const name = input.name.trim();
     if (!name) throw new Error('NOME OBRIGATÓRIO');
     if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
       throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
     }
-    if (this.getItem(id).status !== 'WISHLIST') throw new Error('ITEM NÃO ESTÁ NA WISHLIST');
+    if ((await this.getItem(id)).status !== 'WISHLIST') throw new Error('ITEM NÃO ESTÁ NA WISHLIST');
     return this.patch(id, {
       name: name.toUpperCase(),
       priceCents: input.priceCents,
@@ -113,7 +119,7 @@ export class ShoppingService {
     });
   }
 
-  updateInTransitItem(id: string, input: UpdateInTransitInput): ShoppingItemRecord {
+  async updateInTransitItem(id: string, input: UpdateInTransitInput): Promise<ShoppingItemRecord> {
     const name = input.name.trim();
     if (!name) throw new Error('NOME OBRIGATÓRIO');
     if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
@@ -121,7 +127,7 @@ export class ShoppingService {
     }
     const storeApp = input.storeApp.trim();
     if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
-    const item = this.getItem(id);
+    const item = await this.getItem(id);
     if (item.status !== 'IN_TRANSIT') throw new Error('ITEM NÃO ESTÁ A CAMINHO');
     daysBetweenPureDates(item.purchasedAt!, input.estimatedDeliveryDate); // valida data
     return this.patch(id, {
@@ -133,11 +139,11 @@ export class ShoppingService {
     });
   }
 
-  deleteItem(id: string): void {
-    this.db.delete(schema.shoppingItems).where(eq(schema.shoppingItems.id, id)).run();
+  async deleteItem(id: string): Promise<void> {
+    await this.db.delete(schema.shoppingItems).where(eq(schema.shoppingItems.id, id));
   }
 
-  addPurchasedItem(input: AddPurchasedItemInput): ShoppingItemRecord {
+  async addPurchasedItem(input: AddPurchasedItemInput): Promise<ShoppingItemRecord> {
     const name = input.name.trim();
     if (!name) throw new Error('NOME OBRIGATÓRIO');
     if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
@@ -164,19 +170,25 @@ export class ShoppingService {
       estimatedDeliveryDate: input.estimatedDeliveryDate,
       deliveredAt: null,
     };
-    this.db.transaction(() => {
-      this.db.insert(schema.shoppingItems).values(record).run();
+
+    await this.db.transaction(async (tx) => {
+      await tx.insert(schema.shoppingItems).values(record);
 
       if (!input.alreadyLoggedInFinances && input.payment) {
-        this.logInFinances(record, purchasedAt, input.payment);
+        await this.logInFinances(
+          record,
+          purchasedAt,
+          input.payment,
+          new FinancesService(tx as unknown as AppDatabase),
+        );
       }
     });
 
     return record;
   }
 
-  markPurchased(id: string, input: MarkPurchasedInput): ShoppingItemRecord {
-    const item = this.getItem(id);
+  async markPurchased(id: string, input: MarkPurchasedInput): Promise<ShoppingItemRecord> {
+    const item = await this.getItem(id);
     if (item.status !== 'WISHLIST') throw new Error('ITEM JÁ FOI COMPRADO');
     const storeApp = input.storeApp.trim();
     if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
@@ -185,7 +197,7 @@ export class ShoppingService {
 
     if (!input.alreadyLoggedInFinances) {
       if (!input.payment) throw new Error('FORMA DE PAGAMENTO OBRIGATÓRIA');
-      this.logInFinances(item, purchasedAt, input.payment);
+      await this.logInFinances(item, purchasedAt, input.payment, this.finances);
     }
 
     return this.patch(id, {
@@ -196,9 +208,14 @@ export class ShoppingService {
     });
   }
 
-  private logInFinances(item: ShoppingItemRecord, purchasedAt: string, payment: PurchasePayment) {
+  private async logInFinances(
+    item: ShoppingItemRecord,
+    purchasedAt: string,
+    payment: PurchasePayment,
+    finances: FinancesService,
+  ): Promise<void> {
     if (payment.mode === 'CASH') {
-      this.finances.createTransaction({
+      await finances.createTransaction({
         type: 'EXPENSE',
         description: item.name,
         category: 'COMPRAS',
@@ -208,7 +225,7 @@ export class ShoppingService {
       });
       return;
     }
-    this.finances.createInstallmentPlan({
+    await finances.createInstallmentPlan({
       description: item.name,
       category: 'COMPRAS',
       totalInstallments: payment.totalInstallments,
@@ -219,8 +236,9 @@ export class ShoppingService {
     });
   }
 
-  listInTransitView(today: string = toRecifeDateString()): InTransitView[] {
-    return this.listItemsBySection().inTransit.map((item) => {
+  async listInTransitView(today: string = toRecifeDateString()): Promise<InTransitView[]> {
+    const { inTransit } = await this.listItemsBySection();
+    return inTransit.map((item) => {
       const estimated = item.estimatedDeliveryDate!;
       const estimatedDeliveryWindowEnd = addDaysToPureDate(estimated, DELIVERY_WINDOW_DAYS);
       const total = daysBetweenPureDates(item.purchasedAt!, estimated);
@@ -242,18 +260,21 @@ export class ShoppingService {
     });
   }
 
-  markDelivered(id: string, deliveredAt: string = toRecifeDateString()): ShoppingItemRecord {
-    if (this.getItem(id).status !== 'IN_TRANSIT') throw new Error('ITEM NÃO ESTÁ A CAMINHO');
+  async markDelivered(
+    id: string,
+    deliveredAt: string = toRecifeDateString(),
+  ): Promise<ShoppingItemRecord> {
+    if ((await this.getItem(id)).status !== 'IN_TRANSIT') throw new Error('ITEM NÃO ESTÁ A CAMINHO');
     return this.patch(id, { status: 'DELIVERED', deliveredAt });
   }
 
-  revertDelivered(id: string): ShoppingItemRecord {
-    if (this.getItem(id).status !== 'DELIVERED') throw new Error('ITEM NÃO FOI ENTREGUE');
+  async revertDelivered(id: string): Promise<ShoppingItemRecord> {
+    if ((await this.getItem(id)).status !== 'DELIVERED') throw new Error('ITEM NÃO FOI ENTREGUE');
     return this.patch(id, { status: 'IN_TRANSIT', deliveredAt: null });
   }
 
-  revertToWishlist(id: string): ShoppingItemRecord {
-    const item = this.getItem(id);
+  async revertToWishlist(id: string): Promise<ShoppingItemRecord> {
+    const item = await this.getItem(id);
     if (item.status === 'WISHLIST') throw new Error('ITEM JÁ ESTÁ NA WISHLIST');
     return this.patch(id, {
       status: 'WISHLIST',

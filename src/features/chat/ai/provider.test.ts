@@ -5,7 +5,7 @@ import { buildChatContext } from './context';
 describe('AntigravityAIProvider (streaming token responses with Recife context)', () => {
   it('streams simulated response acknowledging greeting and time context', async () => {
     const provider = new AntigravityAIProvider();
-    const context = buildChatContext(undefined, undefined, new Date('2026-11-11T12:00:00Z'));
+    const context = await buildChatContext(undefined, undefined, new Date('2026-11-11T12:00:00Z'));
 
     const tokens: string[] = [];
     const stream = provider.generateStream(
@@ -25,7 +25,7 @@ describe('AntigravityAIProvider (streaming token responses with Recife context)'
 
   it('streams finance summary when queried about balance', async () => {
     const provider = new AntigravityAIProvider();
-    const context = buildChatContext(undefined, undefined, new Date('2026-11-11T12:00:00Z'));
+    const context = await buildChatContext(undefined, undefined, new Date('2026-11-11T12:00:00Z'));
 
     const tokens: string[] = [];
     const stream = provider.generateStream(

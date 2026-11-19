@@ -50,43 +50,44 @@ export class FinancesService {
     this.repo = new FinancesRepository(db);
   }
 
-  createTransaction(input: CreateTransactionInput): TransactionRecord {
+  async createTransaction(input: CreateTransactionInput): Promise<TransactionRecord> {
     const record = buildNewTransaction(input);
-    this.repo.insertTransaction(record);
+    await this.repo.insertTransaction(record);
     return record;
   }
 
-  updateTransaction(id: string, input: UpdateTransactionInput): TransactionRecord {
-    const existing = this.repo.getTransactionById(id);
+  async updateTransaction(id: string, input: UpdateTransactionInput): Promise<TransactionRecord> {
+    const existing = await this.repo.getTransactionById(id);
     if (!existing) throw new Error(`TRANSAÇÃO NÃO ENCONTRADA: ${id}`);
     const updated = buildUpdatedTransaction(existing, input);
-    this.repo.updateTransaction(id, updated);
+    await this.repo.updateTransaction(id, updated);
     return updated;
   }
 
-  deleteTransaction(id: string): void {
-    this.repo.deleteTransaction(id);
+  async deleteTransaction(id: string): Promise<void> {
+    await this.repo.deleteTransaction(id);
   }
 
-  listTransactions(filters?: TransactionFilters): TransactionRecord[] {
-    return filterTransactionsList(this.repo.getAllTransactions(), filters);
+  async listTransactions(filters?: TransactionFilters): Promise<TransactionRecord[]> {
+    const all = await this.repo.getAllTransactions();
+    return filterTransactionsList(all, filters);
   }
 
-  createPayableBill(input: CreatePayableBillInput): PayableBillRecord {
+  async createPayableBill(input: CreatePayableBillInput): Promise<PayableBillRecord> {
     const record = buildNewPayableBill(input);
-    this.repo.insertPayableBill(record);
+    await this.repo.insertPayableBill(record);
     return record;
   }
 
-  updatePayableBill(id: string, input: UpdatePayableBillInput): PayableBillRecord {
-    const existing = this.repo.getPayableBillById(id);
+  async updatePayableBill(id: string, input: UpdatePayableBillInput): Promise<PayableBillRecord> {
+    const existing = await this.repo.getPayableBillById(id);
     if (!existing) throw new Error(`CONTA NÃO ENCONTRADA: ${id}`);
     const updated = buildUpdatedPayableBill(existing, input);
-    this.repo.updatePayableBill(id, updated);
+    await this.repo.updatePayableBill(id, updated);
 
-    const linkedTx = this.repo.getTransactionByBillId(id);
+    const linkedTx = await this.repo.getTransactionByBillId(id);
     if (linkedTx) {
-      this.repo.updateTransaction(linkedTx.id, {
+      await this.repo.updateTransaction(linkedTx.id, {
         ...linkedTx,
         description: updated.title,
         category: updated.category,
@@ -96,14 +97,17 @@ export class FinancesService {
     return updated;
   }
 
-  markBillPaid(id: string, paidAtDate: string = toRecifeDateString()): PayableBillRecord {
-    const bill = this.repo.getPayableBillById(id);
+  async markBillPaid(
+    id: string,
+    paidAtDate: string = toRecifeDateString(),
+  ): Promise<PayableBillRecord> {
+    const bill = await this.repo.getPayableBillById(id);
     if (!bill) throw new Error(`CONTA NÃO ENCONTRADA: ${id}`);
     const updated: PayableBillRecord = { ...bill, status: 'PAID', paidAt: paidAtDate };
-    this.repo.updatePayableBill(id, updated);
+    await this.repo.updatePayableBill(id, updated);
 
-    if (!this.repo.getTransactionByBillId(id)) {
-      this.repo.insertTransaction({
+    if (!(await this.repo.getTransactionByBillId(id))) {
+      await this.repo.insertTransaction({
         id: crypto.randomUUID(),
         type: 'EXPENSE',
         description: bill.title,
@@ -118,76 +122,85 @@ export class FinancesService {
     return updated;
   }
 
-  markBillPending(id: string): PayableBillRecord {
-    const bill = this.repo.getPayableBillById(id);
+  async markBillPending(id: string): Promise<PayableBillRecord> {
+    const bill = await this.repo.getPayableBillById(id);
     if (!bill) throw new Error(`CONTA NÃO ENCONTRADA: ${id}`);
     const updated: PayableBillRecord = { ...bill, status: 'PENDING', paidAt: null };
-    this.repo.updatePayableBill(id, updated);
-    this.repo.deleteTransactionsByBillId(id);
+    await this.repo.updatePayableBill(id, updated);
+    await this.repo.deleteTransactionsByBillId(id);
     return updated;
   }
 
-  deletePayableBill(id: string): void {
-    this.repo.deleteTransactionsByBillId(id);
-    this.repo.deletePayableBill(id);
+  async deletePayableBill(id: string): Promise<void> {
+    await this.repo.deleteTransactionsByBillId(id);
+    await this.repo.deletePayableBill(id);
   }
 
-  createCreditCard(input: CreateCreditCardInput): CreditCardRecord {
+  async createCreditCard(input: CreateCreditCardInput): Promise<CreditCardRecord> {
     const record = buildNewCreditCard(input);
-    this.repo.insertCreditCard(record);
+    await this.repo.insertCreditCard(record);
     return record;
   }
 
-  deleteCreditCard(id: string): void {
-    this.repo.deleteCreditCard(id);
+  async deleteCreditCard(id: string): Promise<void> {
+    await this.repo.deleteCreditCard(id);
   }
 
-  listCreditCards(): CreditCardRecord[] {
+  async listCreditCards(): Promise<CreditCardRecord[]> {
     return this.repo.getAllCreditCards();
   }
 
-  createInstallmentPlan(input: CreateInstallmentPlanInput): InstallmentPlanRecord {
+  async createInstallmentPlan(input: CreateInstallmentPlanInput): Promise<InstallmentPlanRecord> {
     const record = buildNewInstallmentPlan(input);
-    this.repo.insertInstallmentPlan(record);
+    await this.repo.insertInstallmentPlan(record);
     return record;
   }
 
-  updateInstallmentPlan(id: string, input: UpdateInstallmentPlanInput): InstallmentPlanRecord {
-    const existing = this.repo.getInstallmentPlanById(id);
+  async updateInstallmentPlan(
+    id: string,
+    input: UpdateInstallmentPlanInput,
+  ): Promise<InstallmentPlanRecord> {
+    const existing = await this.repo.getInstallmentPlanById(id);
     if (!existing) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${id}`);
     const updated = buildUpdatedInstallmentPlan(existing, input);
-    this.repo.updateInstallmentPlan(id, updated);
+    await this.repo.updateInstallmentPlan(id, updated);
     return updated;
   }
 
-  advanceInstallment(id: string): InstallmentPlanRecord {
-    const existing = this.repo.getInstallmentPlanById(id);
+  async advanceInstallment(id: string): Promise<InstallmentPlanRecord> {
+    const existing = await this.repo.getInstallmentPlanById(id);
     if (!existing) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${id}`);
     const nextPaid = Math.min(existing.totalInstallments, existing.paidInstallments + 1);
     const updated: InstallmentPlanRecord = { ...existing, paidInstallments: nextPaid };
-    this.repo.updateInstallmentPlan(id, updated);
+    await this.repo.updateInstallmentPlan(id, updated);
     return updated;
   }
 
-  deleteInstallmentPlan(id: string): void {
-    this.repo.deleteInstallmentPlan(id);
+  async deleteInstallmentPlan(id: string): Promise<void> {
+    await this.repo.deleteInstallmentPlan(id);
   }
 
-  listInstallmentPlans(): InstallmentPlanRecord[] {
+  async listInstallmentPlans(): Promise<InstallmentPlanRecord[]> {
     return this.repo.getAllInstallmentPlans();
   }
 
-  listActiveInstallmentViews(): InstallmentPlanView[] {
-    const cards = new Map(this.listCreditCards().map((c) => [c.id, c]));
-    return this.listInstallmentPlans()
+  async listActiveInstallmentViews(): Promise<InstallmentPlanView[]> {
+    const [creditCards, plans] = await Promise.all([
+      this.listCreditCards(),
+      this.listInstallmentPlans(),
+    ]);
+    const cards = new Map(creditCards.map((c) => [c.id, c]));
+    return plans
       .filter((p) => p.paidInstallments < p.totalInstallments)
       .map((p) => buildInstallmentView(p, cards));
   }
 
-  private syncCreditCardBillsForMonth(competenceMonth: string): void {
-    const cards = this.listCreditCards();
-    const allPlans = this.listInstallmentPlans();
-    const existingBills = this.repo.getAllPayableBills();
+  private async syncCreditCardBillsForMonth(competenceMonth: string): Promise<void> {
+    const [cards, allPlans, existingBills] = await Promise.all([
+      this.listCreditCards(),
+      this.listInstallmentPlans(),
+      this.repo.getAllPayableBills(),
+    ]);
 
     for (const card of cards) {
       const cardTotal = computeCardInstallmentsTotal(card.id, allPlans, competenceMonth);
@@ -199,7 +212,7 @@ export class FinancesService {
       );
 
       if (cardTotal > 0 && !existing) {
-        this.createPayableBill({
+        await this.createPayableBill({
           title: `FATURA ${card.name}`,
           billType: 'CREDIT_CARD_BILL',
           amountCents: cardTotal,
@@ -209,18 +222,18 @@ export class FinancesService {
           creditCardId: card.id,
         });
       } else if (existing && existing.status === 'PENDING') {
-        if (cardTotal === 0) this.deletePayableBill(existing.id);
+        if (cardTotal === 0) await this.deletePayableBill(existing.id);
         else if (existing.amountCents !== cardTotal) {
-          this.updatePayableBill(existing.id, { amountCents: cardTotal });
+          await this.updatePayableBill(existing.id, { amountCents: cardTotal });
         }
       }
     }
   }
 
-  private syncFixedBillsForMonth(competenceMonth: string): void {
-    const fixed = this.repo
-      .getAllPayableBills()
-      .filter((b) => b.billType === 'FIXED_RECURRING');
+  private async syncFixedBillsForMonth(competenceMonth: string): Promise<void> {
+    const fixed = (await this.repo.getAllPayableBills()).filter(
+      (b) => b.billType === 'FIXED_RECURRING',
+    );
     const latestByTitle = new Map<string, PayableBillRecord>();
     for (const bill of fixed) {
       const prev = latestByTitle.get(bill.title);
@@ -235,7 +248,7 @@ export class FinancesService {
       );
       const hasEarlier = latest.competenceMonth < competenceMonth || startedBefore;
       if (existsInMonth || !hasEarlier) continue;
-      this.createPayableBill({
+      await this.createPayableBill({
         title,
         billType: 'FIXED_RECURRING',
         amountCents: latest.amountCents,
@@ -246,48 +259,72 @@ export class FinancesService {
     }
   }
 
-  listPayableBills(params?: { period?: FinancePeriod; referenceDate?: string }): PayableBillRecord[] {
+  async listPayableBills(params?: {
+    period?: FinancePeriod;
+    referenceDate?: string;
+  }): Promise<PayableBillRecord[]> {
     const prefix = getYearMonthPrefix(params?.period ?? 'ALL', params?.referenceDate);
     const month = prefix ?? toRecifeDateString().slice(0, 7);
-    this.syncCreditCardBillsForMonth(month);
-    this.syncFixedBillsForMonth(month);
-    return filterBillsByPrefix(this.repo.getAllPayableBills(), prefix);
+    await this.syncCreditCardBillsForMonth(month);
+    await this.syncFixedBillsForMonth(month);
+    return filterBillsByPrefix(await this.repo.getAllPayableBills(), prefix);
   }
 
-  getBalanceSummary(params?: { period?: FinancePeriod; referenceDate?: string }): BalanceSummary {
+  async getBalanceSummary(params?: {
+    period?: FinancePeriod;
+    referenceDate?: string;
+  }): Promise<BalanceSummary> {
     const period = params?.period ?? 'THIS_MONTH';
-    const periodTxs = this.listTransactions({ period, referenceDate: params?.referenceDate });
-    const pendingBills = this.listPayableBills({
-      period,
-      referenceDate: params?.referenceDate,
-    }).filter((b) => b.status === 'PENDING');
+    const [periodTxs, allBills, installmentPlans] = await Promise.all([
+      this.listTransactions({ period, referenceDate: params?.referenceDate }),
+      this.listPayableBills({ period, referenceDate: params?.referenceDate }),
+      this.listInstallmentPlans(),
+    ]);
+    const pendingBills = allBills.filter((b) => b.status === 'PENDING');
     const month = getYearMonthPrefix(period, params?.referenceDate);
-    return computeBalanceSummary(periodTxs, pendingBills, this.listInstallmentPlans(), month);
+    return computeBalanceSummary(periodTxs, pendingBills, installmentPlans, month);
   }
 
-  getHideBalance(): boolean {
+  async getHideBalance(): Promise<boolean> {
     return this.repo.getHideBalance();
   }
 
-  toggleHideBalance(): boolean {
+  async toggleHideBalance(): Promise<boolean> {
     return this.repo.toggleHideBalance();
   }
 
-  getDashboardView(filters?: TransactionFilters): FinancesDashboardView {
+  async getDashboardView(filters?: TransactionFilters): Promise<FinancesDashboardView> {
     const period = filters?.period ?? 'THIS_MONTH';
-    const periodTxs = this.listTransactions({ period, referenceDate: filters?.referenceDate });
-    const meta = computeDashboardMeta(periodTxs, this.repo.getAllTransactions());
+    const [allTransactions, payableBills, creditCards, installmentPlans, hideBalance] =
+      await Promise.all([
+        this.repo.getAllTransactions(),
+        this.listPayableBills({ period, referenceDate: filters?.referenceDate }),
+        this.listCreditCards(),
+        this.listActiveInstallmentViews(),
+        this.getHideBalance(),
+      ]);
+    const periodTxs = filterTransactionsList(allTransactions, {
+      period,
+      referenceDate: filters?.referenceDate,
+    });
+    const meta = computeDashboardMeta(periodTxs, allTransactions);
+    const filteredTransactions = filterTransactionsList(allTransactions, { ...filters, period });
+    const summary = await this.getBalanceSummary({
+      period,
+      referenceDate: filters?.referenceDate,
+    });
+
     return {
       period,
       dateFilter: filters?.date ?? '',
       categoryFilter: filters?.category ?? '',
-      transactions: this.listTransactions({ ...filters, period }),
-      payableBills: this.listPayableBills({ period, referenceDate: filters?.referenceDate }),
-      creditCards: this.listCreditCards(),
-      installmentPlans: this.listActiveInstallmentViews(),
+      transactions: filteredTransactions,
+      payableBills,
+      creditCards,
+      installmentPlans,
       ...meta,
-      summary: this.getBalanceSummary({ period, referenceDate: filters?.referenceDate }),
-      hideBalance: this.getHideBalance(),
+      summary,
+      hideBalance,
     };
   }
 }
