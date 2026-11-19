@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { DOMAIN_TABLE_NAMES } from '../db/schema';
 
 export interface AuditFile {
   path: string;
@@ -147,7 +148,7 @@ function normalizePath(filePath: string): string {
 
 function isServerActionFile(filePath: string, content: string): boolean {
   const normalized = normalizePath(filePath);
-  if (!normalized.startsWith('src/features/') || !/\.(ts|tsx)$/.test(normalized)) {
+  if (!normalized.startsWith('src/') || !/\.(ts|tsx)$/.test(normalized)) {
     return false;
   }
   if (/\.test\.(ts|tsx)$/.test(normalized)) {
@@ -390,24 +391,30 @@ export function checkAuthGuards(files: AuditFile[]): SecurityViolation[] {
   return violations;
 }
 
-export const REQUIRED_DOMAIN_TABLES = [
-  'calendar_events',
-  'credit_cards',
-  'installment_plans',
-  'payable_bills',
-  'transactions',
-  'finance_preferences',
-  'academic_projects',
-  'project_milestones',
-  'project_links',
-  'shopping_items',
-  'chat_threads',
-  'chat_messages',
-  'pending_tool_actions',
-] as const;
+export const REQUIRED_DOMAIN_TABLES = DOMAIN_TABLE_NAMES;
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripSqlComments(sql: string): string {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, '');
+}
+
+function extractCreatedTables(sql: string): string[] {
+  const sanitized = stripSqlComments(sql);
+  const tables: string[] = [];
+  const createTableRegex =
+    /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:(?:"?[a-zA-Z_][a-zA-Z0-9_]*"?)\.)?"?([a-zA-Z_][a-zA-Z0-9_]*)"?/gi;
+
+  let match: RegExpExecArray | null;
+  while ((match = createTableRegex.exec(sanitized)) !== null) {
+    const tableName = match[1];
+    if (tableName) {
+      tables.push(tableName);
+    }
+  }
+  return tables;
 }
 
 export function checkMigrationRls(
@@ -417,8 +424,11 @@ export function checkMigrationRls(
   const violations: SecurityViolation[] = [];
   const combinedSql = sqlFiles.map((file) => file.content).join('\n');
   const migrationTarget = sqlFiles[0]?.path ?? 'src/db/migrations-pg';
+  const tablesToCheck = Array.from(
+    new Set([...requiredTables, ...extractCreatedTables(combinedSql)]),
+  );
 
-  for (const table of requiredTables) {
+  for (const table of tablesToCheck) {
     const escaped = escapeRegex(table);
     const tableRef = `(?:(?:"?public"?\\.)?"?${escaped}"?)`;
 
@@ -548,6 +558,11 @@ export function runSecurityAudit(rootDir: string): SecurityAuditReport {
     /^src\/db\/migrations-pg\/.+\.sql$/i.test(file.path),
   );
 
+  const checkedTables = new Set([
+    ...REQUIRED_DOMAIN_TABLES,
+    ...extractCreatedTables(sqlMigrationFiles.map((file) => file.content).join('\n')),
+  ]).size;
+
   const violations: SecurityViolation[] = [
     ...checkHardcodedSecrets(allFiles),
     ...checkAuthGuards(authFiles),
@@ -559,6 +574,6 @@ export function runSecurityAudit(rootDir: string): SecurityAuditReport {
     violations,
     scannedFiles: allFiles.length,
     checkedAuthFiles: authFiles.length,
-    checkedTables: REQUIRED_DOMAIN_TABLES.length,
+    checkedTables,
   };
 }

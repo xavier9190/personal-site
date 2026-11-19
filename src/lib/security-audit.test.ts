@@ -151,6 +151,34 @@ export async function POST(req: NextRequest) {
 
     expect(violations).toEqual([]);
   });
+
+  it('flags exported Server Actions in "use server" files outside src/features/ and ignores *.test.* files', () => {
+    const violations = checkAuthGuards([
+      {
+        path: 'src/app/settings/actions.ts',
+        content: `'use server';
+
+export async function updatePreference() {
+  return { ok: true };
+}
+`,
+      },
+      {
+        path: 'src/lib/helpers.test.ts',
+        content: `'use server';
+
+export async function testOnlyAction() {
+  return { ok: true };
+}
+`,
+      },
+    ]);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]?.rule).toBe('require-session-auth');
+    expect(violations[0]?.file).toBe('src/app/settings/actions.ts');
+    expect(violations[0]?.message).toContain('updatePreference');
+  });
 });
 
 describe('checkMigrationRls', () => {
@@ -191,6 +219,27 @@ describe('checkMigrationRls', () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it('flags any new CREATE TABLE statement in migrations that lacks RLS or REVOKE ALL', () => {
+    const violations = checkMigrationRls(
+      [
+        {
+          path: 'src/db/migrations-pg/0001_new_table.sql',
+          content: `
+            ALTER TABLE "calendar_events" ENABLE ROW LEVEL SECURITY;
+            REVOKE ALL ON TABLE "calendar_events" FROM anon, authenticated;
+            CREATE TABLE IF NOT EXISTS "public"."future_notes" ("id" text PRIMARY KEY);
+          `,
+        },
+      ],
+      ['calendar_events'],
+    );
+
+    expect(violations).toHaveLength(2);
+    expect(violations.every((v) => v.rule === 'migration-rls-required')).toBe(true);
+    expect(violations.some((v) => v.message.includes('future_notes') && v.message.includes('ENABLE ROW LEVEL SECURITY'))).toBe(true);
+    expect(violations.some((v) => v.message.includes('future_notes') && v.message.includes('REVOKE'))).toBe(true);
   });
 });
 

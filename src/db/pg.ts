@@ -1,7 +1,7 @@
 import path from 'node:path';
 import postgres, { type Sql } from 'postgres';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as pgSchema from './pg-schema';
+import * as pgSchema from './schema';
 
 export type PgDatabase = PostgresJsDatabase<typeof pgSchema>;
 

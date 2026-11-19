@@ -169,7 +169,7 @@ export function PinAccessForm({
 
         <SketchButton
           type="submit"
-          variant="filled"
+          variant="outline"
           disabled={loading || isMisconfigured}
           className="w-full"
         >

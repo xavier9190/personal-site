@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createPgClient } from './pg';
 import { createPgliteTestDb } from './pglite-test';
-import * as pgSchema from './pg-schema';
+import * as pgSchema from './schema';
 import { runPgMigrations } from '../../scripts/db-migrate';
 
 const EXPECTED_DOMAIN_TABLES = [

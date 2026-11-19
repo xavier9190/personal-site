@@ -62,12 +62,7 @@ jobs:
       - name: Apply Supabase PostgreSQL migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "Skipping database migrations: DATABASE_URL secret is not configured."
-            exit 0
-          fi
-          npm run db:migrate
+        run: npm run db:migrate
 
       - name: Deploy production to Vercel
         env:

@@ -57,9 +57,13 @@ describe('CI/CD workflow contract (.github/workflows/ci-cd.yml)', () => {
     expect(deployJobSection).toContain("github.ref == 'refs/heads/main'");
     expect(deployJobSection).toContain('npm run db:migrate');
     expect(deployJobSection).toContain('secrets.DATABASE_URL');
+    // Migration step must fail fast when DATABASE_URL is missing instead of silently skipping
+    expect(deployJobSection).not.toMatch(/if\s+\[\s*-z\s*"\$DATABASE_URL"\s*\]/);
+    expect(deployJobSection).not.toContain('Skipping database migrations');
     expect(deployJobSection).toContain('secrets.VERCEL_TOKEN');
     expect(deployJobSection).toContain('secrets.VERCEL_ORG_ID');
     expect(deployJobSection).toContain('secrets.VERCEL_PROJECT_ID');
+    expect(deployJobSection).toContain('Skipping Vercel deploy');
     expect(deployJobSection).toContain('vercel pull --yes --environment=production');
     expect(deployJobSection).toContain('vercel build --prod');
     expect(deployJobSection).toContain('vercel deploy --prebuilt --prod');
