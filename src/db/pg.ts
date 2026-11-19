@@ -25,7 +25,9 @@ export function createPgClient(
 
   const sql = postgres(connectionString, {
     prepare: false,
-    ...(options?.max !== undefined ? { max: options.max } : {}),
+    idle_timeout: 20,
+    connect_timeout: 15,
+    max: options?.max ?? 5,
   });
 
   const db = drizzle(sql, { schema: pgSchema });
