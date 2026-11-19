@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getModuleByPath, MODULES } from '@/config/modules';
+import { LockHubButton } from '@/components/layout/LockHubButton';
 import { cn } from '@/lib/utils';
 
 export function AppSidebar() {
@@ -61,6 +62,10 @@ export function AppSidebar() {
 
       <div className="mt-4 px-2">
         <div className="h-[2px] w-full bg-[#f1f3f5]" />
+      </div>
+
+      <div className="mt-auto pt-4">
+        <LockHubButton variant="desktop" />
       </div>
     </aside>
   );
