@@ -17,7 +17,7 @@ Produto que o usuário deseja comprar futuramente, contendo nome, preço estimad
 _Avoid_: Pedido, compra ativa
 
 **Entrega em Trânsito (In-Transit Purchase)**:
-Produto já adquirido que aguarda entrega física, contendo data estimada de chegada, loja/app da compra (`Mercado Livre`, `AliExpress`, `Shopee`, etc.) e status de atraso (`(!)` quando passa da data prevista sem confirmação de `Chegou!`).
+Produto já adquirido que aguarda entrega física, contendo data estimada inicial de chegada (com janela fixa de +5 dias, `x` a `x+5`), loja/app da compra (`Mercado Livre`, `AliExpress`, `Shopee`, etc.) e status de atraso (`(!)` quando passa do fim da janela de entrega sem confirmação de `Chegou!`).
 _Avoid_: Item da wishlist
 
 **Transação (Transaction)**:

@@ -3,8 +3,10 @@ import { eq } from 'drizzle-orm';
 import type { AppDatabase } from '@/db';
 import { getDb } from '@/db';
 import { FinancesService } from '@/features/finances/service';
-import { daysBetweenPureDates, toRecifeDateString } from '@/lib/dates';
+import { addDaysToPureDate, daysBetweenPureDates, toRecifeDateString } from '@/lib/dates';
 import * as schema from './schema';
+
+export const DELIVERY_WINDOW_DAYS = 5;
 
 export type ShoppingItemRecord = typeof schema.shoppingItems.$inferSelect;
 
@@ -32,8 +34,13 @@ export interface MarkPurchasedInput {
   payment?: PurchasePayment;
 }
 
+export interface AddPurchasedItemInput extends AddWishlistItemInput, MarkPurchasedInput {}
+
 export interface InTransitView extends ShoppingItemRecord {
+  estimatedDeliveryWindowEnd: string;
   daysLeft: number;
+  daysLeftToWindowEnd: number;
+  isInDeliveryWindow: boolean;
   isOverdue: boolean;
   /** 0..1 do tempo decorrido entre compra e data estimada. */
   progress: number;
@@ -130,6 +137,44 @@ export class ShoppingService {
     this.db.delete(schema.shoppingItems).where(eq(schema.shoppingItems.id, id)).run();
   }
 
+  addPurchasedItem(input: AddPurchasedItemInput): ShoppingItemRecord {
+    const name = input.name.trim();
+    if (!name) throw new Error('NOME OBRIGATÓRIO');
+    if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
+      throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
+    }
+    const storeApp = input.storeApp.trim();
+    if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
+    const purchasedAt = input.purchasedAt ?? toRecifeDateString();
+    daysBetweenPureDates(purchasedAt, input.estimatedDeliveryDate); // valida datas
+
+    if (!input.alreadyLoggedInFinances && !input.payment) {
+      throw new Error('FORMA DE PAGAMENTO OBRIGATÓRIA');
+    }
+
+    const record: ShoppingItemRecord = {
+      id: crypto.randomUUID(),
+      name: name.toUpperCase(),
+      priceCents: input.priceCents,
+      productUrl: input.productUrl?.trim() || null,
+      status: 'IN_TRANSIT',
+      storeApp: storeApp.toUpperCase(),
+      trackingUrl: null,
+      purchasedAt,
+      estimatedDeliveryDate: input.estimatedDeliveryDate,
+      deliveredAt: null,
+    };
+    this.db.transaction(() => {
+      this.db.insert(schema.shoppingItems).values(record).run();
+
+      if (!input.alreadyLoggedInFinances && input.payment) {
+        this.logInFinances(record, purchasedAt, input.payment);
+      }
+    });
+
+    return record;
+  }
+
   markPurchased(id: string, input: MarkPurchasedInput): ShoppingItemRecord {
     const item = this.getItem(id);
     if (item.status !== 'WISHLIST') throw new Error('ITEM JÁ FOI COMPRADO');
@@ -177,11 +222,23 @@ export class ShoppingService {
   listInTransitView(today: string = toRecifeDateString()): InTransitView[] {
     return this.listItemsBySection().inTransit.map((item) => {
       const estimated = item.estimatedDeliveryDate!;
+      const estimatedDeliveryWindowEnd = addDaysToPureDate(estimated, DELIVERY_WINDOW_DAYS);
       const total = daysBetweenPureDates(item.purchasedAt!, estimated);
       const elapsed = daysBetweenPureDates(item.purchasedAt!, today);
       const daysLeft = daysBetweenPureDates(today, estimated);
+      const daysLeftToWindowEnd = daysBetweenPureDates(today, estimatedDeliveryWindowEnd);
+      const isInDeliveryWindow = daysLeft <= 0 && daysLeftToWindowEnd >= 0;
+      const isOverdue = daysLeftToWindowEnd < 0;
       const progress = total <= 0 ? 1 : Math.min(1, Math.max(0, elapsed / total));
-      return { ...item, daysLeft, isOverdue: daysLeft < 0, progress };
+      return {
+        ...item,
+        estimatedDeliveryWindowEnd,
+        daysLeft,
+        daysLeftToWindowEnd,
+        isInDeliveryWindow,
+        isOverdue,
+        progress,
+      };
     });
   }
 

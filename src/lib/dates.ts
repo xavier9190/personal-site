@@ -86,3 +86,12 @@ export function daysBetweenPureDates(
 
   return Math.round((utc2 - utc1) / (1000 * 60 * 60 * 24));
 }
+
+export function addDaysToPureDate(pureDate: PureDateString, days: number): PureDateString {
+  const [y, m, d] = assertPureDate(pureDate).map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  const year = String(dt.getUTCFullYear()).padStart(4, '0');
+  const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(dt.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

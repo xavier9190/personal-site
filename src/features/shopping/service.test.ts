@@ -138,12 +138,42 @@ describe('ShoppingService seam (Wishlist, Comprei ✓ → Finanças, A Caminho, 
         estimatedDeliveryDate: '2026-11-05',
         alreadyLoggedInFinances: true,
       });
+      const c = shopping.addWishlistItem({ name: 'C', priceCents: 100 });
+      shopping.markPurchased(c.id, {
+        storeApp: 'Shopee',
+        purchasedAt: '2026-11-01',
+        estimatedDeliveryDate: '2026-11-12',
+        alreadyLoggedInFinances: true,
+      });
 
       const view = shopping.listInTransitView('2026-11-15');
       const va = view.find((v) => v.id === a.id)!;
       const vb = view.find((v) => v.id === b.id)!;
-      expect(va).toMatchObject({ daysLeft: 5, isOverdue: false, progress: 0.5 });
-      expect(vb).toMatchObject({ daysLeft: -10, isOverdue: true, progress: 1 });
+      const vc = view.find((v) => v.id === c.id)!;
+      expect(va).toMatchObject({
+        estimatedDeliveryWindowEnd: '2026-11-25',
+        daysLeft: 5,
+        daysLeftToWindowEnd: 10,
+        isInDeliveryWindow: false,
+        isOverdue: false,
+        progress: 0.5,
+      });
+      expect(vb).toMatchObject({
+        estimatedDeliveryWindowEnd: '2026-11-10',
+        daysLeft: -10,
+        daysLeftToWindowEnd: -5,
+        isInDeliveryWindow: false,
+        isOverdue: true,
+        progress: 1,
+      });
+      expect(vc).toMatchObject({
+        estimatedDeliveryWindowEnd: '2026-11-17',
+        daysLeft: -3,
+        daysLeftToWindowEnd: 2,
+        isInDeliveryWindow: true,
+        isOverdue: false,
+        progress: 1,
+      });
     } finally {
       close();
     }
@@ -178,6 +208,62 @@ describe('ShoppingService seam (Wishlist, Comprei ✓ → Finanças, A Caminho, 
       expect(s.wishlist[0].status).toBe('WISHLIST');
       expect(s.wishlist[0].purchasedAt).toBeNull();
       expect(s.wishlist[0].storeApp).toBeNull();
+    } finally {
+      close();
+    }
+  });
+
+  it('adds an already-purchased item directly to in-transit without going through wishlist', () => {
+    const { shopping, finances, close } = setup();
+    try {
+      const directCash = shopping.addPurchasedItem({
+        name: 'Fone Bluetooth',
+        priceCents: 25000,
+        productUrl: 'https://loja.com/fone',
+        storeApp: 'Amazon',
+        purchasedAt: '2026-11-11',
+        estimatedDeliveryDate: '2026-11-18',
+        alreadyLoggedInFinances: false,
+        payment: { mode: 'CASH' },
+      });
+
+      const directLogged = shopping.addPurchasedItem({
+        name: 'Suporte Notebook',
+        priceCents: 9000,
+        storeApp: 'Shopee',
+        purchasedAt: '2026-11-11',
+        estimatedDeliveryDate: '2026-11-20',
+        alreadyLoggedInFinances: true,
+      });
+
+      const { wishlist, inTransit } = shopping.listItemsBySection();
+      expect(wishlist).toHaveLength(0);
+      expect(inTransit.map((i) => i.id)).toEqual([directCash.id, directLogged.id]);
+      expect(inTransit[0]).toMatchObject({
+        name: 'FONE BLUETOOTH',
+        storeApp: 'AMAZON',
+        status: 'IN_TRANSIT',
+      });
+
+      const txs = finances.listTransactions();
+      expect(txs).toHaveLength(1);
+      expect(txs[0]).toMatchObject({
+        amountCents: 25000,
+        shoppingItemId: directCash.id,
+      });
+
+      // Validation error must not leave orphan item
+      expect(() =>
+        shopping.addPurchasedItem({
+          name: 'Sem Pagamento',
+          priceCents: 1000,
+          storeApp: 'Shopee',
+          purchasedAt: '2026-11-11',
+          estimatedDeliveryDate: '2026-11-20',
+          alreadyLoggedInFinances: false,
+        }),
+      ).toThrow(/FORMA DE PAGAMENTO/);
+      expect(shopping.listItemsBySection().inTransit).toHaveLength(2);
     } finally {
       close();
     }

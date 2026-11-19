@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import {
   ShoppingService,
+  type AddPurchasedItemInput,
   type AddWishlistItemInput,
   type MarkPurchasedInput,
   type UpdateInTransitInput,
@@ -36,6 +37,10 @@ export async function updateWishlistItemAction(id: string, input: AddWishlistIte
 
 export async function updateInTransitItemAction(id: string, input: UpdateInTransitInput) {
   return run((s) => s.updateInTransitItem(id, input), 'ERRO AO EDITAR COMPRA');
+}
+
+export async function addPurchasedItemAction(input: AddPurchasedItemInput) {
+  return run((s) => s.addPurchasedItem(input), 'ERRO AO ADICIONAR COMPRA');
 }
 
 export async function markPurchasedAction(id: string, input: MarkPurchasedInput) {
