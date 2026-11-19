@@ -90,9 +90,19 @@ describe('Middleware auth seam', () => {
   });
 
   it('allows public auth and static endpoints through even when unauthenticated', async () => {
-    for (const path of ['/pin', '/api/pin', '/manifest.webmanifest', '/favicon.ico']) {
+    for (const path of [
+      '/pin',
+      '/api/pin',
+      '/manifest.webmanifest',
+      '/favicon.ico',
+      '/offline',
+      '/sw.js',
+      '/icons/icon.svg',
+      '/icons/icon-192.png',
+      '/icons/apple-touch-icon.png',
+    ]) {
       const res = await middleware(new NextRequest(`https://hub.example.com${path}`));
-      expect(res.headers.get('x-middleware-next')).toBe('1');
+      expect(res.headers.get('x-middleware-next'), `Expected ${path} to be public`).toBe('1');
     }
   });
 });
