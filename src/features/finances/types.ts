@@ -45,7 +45,9 @@ export const createTransactionSchema = z.object({
   shoppingItemId: z.string().nullable().optional(),
 });
 
-export const updateTransactionSchema = createTransactionSchema.partial();
+export const updateTransactionSchema = createTransactionSchema.partial().extend({
+  status: z.enum(['PAID', 'PENDING']).optional(),
+});
 
 export const createPayableBillSchema = z.object({
   title: z.string().trim().min(1, 'TÍTULO OBRIGATÓRIO'),
@@ -82,7 +84,9 @@ export const createInstallmentPlanSchema = z.object({
   shoppingItemId: z.string().nullable().optional(),
 });
 
-export const updateInstallmentPlanSchema = createInstallmentPlanSchema.partial();
+export const updateInstallmentPlanSchema = createInstallmentPlanSchema.partial().extend({
+  paidInstallments: z.number().int().min(0).optional(),
+});
 
 export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;

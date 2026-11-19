@@ -34,6 +34,8 @@ export const createProjectSchema = z.object({
 });
 
 export const updateProjectSchema = createProjectSchema.partial().extend({
+  groupMembers: z.array(z.string().trim().min(1)).optional(),
+  links: z.array(projectLinkInputSchema).optional(),
   status: academicProjectStatusSchema.optional(),
 });
 
