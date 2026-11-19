@@ -5,7 +5,13 @@ export const dynamic = 'force-dynamic';
 
 export default function AcademicoPage() {
   const academicService = new AcademicService();
-  const { inProgress, completed } = academicService.listProjectsByStatus();
+  const { planned, inProgress, completed } = academicService.listProjectsByStatus();
 
-  return <AcademicDashboardClient inProgress={inProgress} completed={completed} />;
+  return (
+    <AcademicDashboardClient
+      planned={planned}
+      inProgress={inProgress}
+      completed={completed}
+    />
+  );
 }

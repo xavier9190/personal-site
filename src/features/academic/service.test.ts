@@ -162,4 +162,93 @@ describe('AcademicService seam (Projects, Links, Milestones, Completion)', () =>
       close();
     }
   });
+
+  it('creates a planned ("quero fazer") project and lists it under planned', () => {
+    const { db, close } = createDbClient(':memory:');
+    const service = new AcademicService(db);
+
+    try {
+      const project = service.createProject({
+        title: 'App de Controle de Hábitos',
+        description: 'Ideia de projeto pessoal com React Native',
+        status: 'PLANNED',
+        links: [{ label: 'Referência', url: 'https://example.com/ref' }],
+      });
+
+      expect(project.status).toBe('PLANNED');
+
+      const overview = service.listProjectsByStatus();
+      expect(overview.planned).toHaveLength(1);
+      expect(overview.planned[0].id).toBe(project.id);
+      expect(overview.inProgress).toHaveLength(0);
+      expect(overview.completed).toHaveLength(0);
+    } finally {
+      close();
+    }
+  });
+
+  it('starts a planned project via startProject, moving it from planned to inProgress', () => {
+    const { db, close } = createDbClient(':memory:');
+    const service = new AcademicService(db);
+
+    try {
+      const project = service.createProject({
+        title: 'CLI em Rust',
+        description: 'Ferramenta de linha de comando para produtividade',
+        status: 'PLANNED',
+      });
+
+      expect(service.listProjectsByStatus().planned).toHaveLength(1);
+
+      service.startProject(project.id);
+
+      const details = service.getProjectDetails(project.id)!;
+      expect(details.status).toBe('IN_PROGRESS');
+
+      const overview = service.listProjectsByStatus();
+      expect(overview.planned).toHaveLength(0);
+      expect(overview.inProgress).toHaveLength(1);
+      expect(overview.inProgress[0].id).toBe(project.id);
+
+      expect(() => service.startProject('nao-existe')).toThrow(/PROJETO NÃO ENCONTRADO/);
+    } finally {
+      close();
+    }
+  });
+
+  it('edits and deletes a planned project while preserving or updating its status', () => {
+    const { db, close } = createDbClient(':memory:');
+    const service = new AcademicService(db);
+
+    try {
+      const project = service.createProject({
+        title: 'Blog Pessoal',
+        description: 'Ideia de blog com MDX',
+        status: 'PLANNED',
+      });
+
+      const updated = service.updateProject(project.id, {
+        title: 'Blog Pessoal v2',
+        description: 'Ideia atualizada com Astro',
+      });
+      expect(updated.title).toBe('BLOG PESSOAL V2');
+      expect(updated.status).toBe('PLANNED');
+
+      const movedToInProgress = service.updateProject(project.id, {
+        status: 'IN_PROGRESS',
+      });
+      expect(movedToInProgress.status).toBe('IN_PROGRESS');
+
+      const movedBackToPlanned = service.updateProject(project.id, {
+        status: 'PLANNED',
+      });
+      expect(movedBackToPlanned.status).toBe('PLANNED');
+
+      service.deleteProject(project.id);
+      expect(service.getProjectDetails(project.id)).toBeNull();
+      expect(service.listProjectsByStatus().planned).toHaveLength(0);
+    } finally {
+      close();
+    }
+  });
 });

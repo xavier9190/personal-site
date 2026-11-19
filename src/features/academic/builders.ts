@@ -28,7 +28,7 @@ export function buildNewProjectRecord(input: CreateProjectInput): {
     description: parsed.description.toUpperCase(),
     finalDeliveryDate: parsed.finalDeliveryDate ?? null,
     groupMembers: JSON.stringify(parsed.groupMembers.map((m) => m.trim().toUpperCase())),
-    status: 'IN_PROGRESS',
+    status: parsed.status,
     createdAt: now,
     updatedAt: now,
   };
@@ -66,6 +66,7 @@ export function buildUpdatedProjectRecord(
       parsed.groupMembers !== undefined
         ? JSON.stringify(parsed.groupMembers.map((m) => m.trim().toUpperCase()))
         : existing.groupMembers,
+    status: parsed.status !== undefined ? parsed.status : existing.status,
     updatedAt: now,
   };
 

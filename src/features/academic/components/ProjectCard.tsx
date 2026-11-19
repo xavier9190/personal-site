@@ -9,10 +9,19 @@ export interface ProjectCardProps {
   project: AcademicProjectView;
   isSelected?: boolean;
   onClick: () => void;
+  onStart?: () => void;
+  starting?: boolean;
 }
 
-export function ProjectCard({ project, isSelected, onClick }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  isSelected,
+  onClick,
+  onStart,
+  starting = false,
+}: ProjectCardProps) {
   const isCompleted = project.status === 'COMPLETED';
+  const isPlanned = project.status === 'PLANNED';
 
   return (
     <div
@@ -77,6 +86,23 @@ export function ProjectCard({ project, isSelected, onClick }: ProjectCardProps) 
               <ExternalLink className="h-3 w-3" />
             </a>
           ))}
+        </div>
+      )}
+
+      {isPlanned && onStart && (
+        <div className="pt-3 mt-3 border-t border-[#f1f3f5]/20">
+          <button
+            type="button"
+            disabled={starting}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStart();
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full min-h-[36px] rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-1.5 text-xs font-bold tracking-wider text-[#f1f3f5] transition-colors hover:bg-[#f1f3f5] hover:text-[#121212] disabled:opacity-50"
+          >
+            {starting ? 'INICIANDO...' : 'COMECEI A FAZER ▶'}
+          </button>
         </div>
       )}
     </div>

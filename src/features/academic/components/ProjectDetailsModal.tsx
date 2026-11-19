@@ -6,13 +6,39 @@ import { ConfirmDeleteModal } from '@/components/sketch/ConfirmDeleteModal';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
 import { formatPureDateBR } from '@/lib/dates';
-import type { AcademicProjectView } from '../service';
+import type { AcademicProjectStatus, AcademicProjectView } from '../service';
 import {
   completeProjectAction,
   deleteProjectAction,
   reopenProjectAction,
+  startProjectAction,
 } from '../actions';
 import { MilestoneTimeline } from './MilestoneTimeline';
+
+const STATUS_TRANSITION: Record<
+  AcademicProjectStatus,
+  {
+    badgeLabel: string;
+    actionLabel: string;
+    action: (id: string) => Promise<unknown>;
+  }
+> = {
+  PLANNED: {
+    badgeLabel: 'STATUS: QUERO FAZER',
+    actionLabel: 'COMECEI A FAZER ▶',
+    action: startProjectAction,
+  },
+  IN_PROGRESS: {
+    badgeLabel: 'STATUS: EM ANDAMENTO',
+    actionLabel: 'CONCLUIR PROJETO ✓',
+    action: completeProjectAction,
+  },
+  COMPLETED: {
+    badgeLabel: 'STATUS: CONCLUÍDO',
+    actionLabel: 'REABRIR PROJETO ⟲',
+    action: reopenProjectAction,
+  },
+};
 
 export interface ProjectDetailsModalProps {
   isOpen: boolean;
@@ -32,16 +58,12 @@ export function ProjectDetailsModal({
 
   if (!project) return null;
 
-  const isCompleted = project.status === 'COMPLETED';
+  const transition = STATUS_TRANSITION[project.status];
 
   function handleToggleStatus() {
     if (!project) return;
     startTransition(async () => {
-      if (isCompleted) {
-        await reopenProjectAction(project.id);
-      } else {
-        await completeProjectAction(project.id);
-      }
+      await transition.action(project.id);
     });
   }
 
@@ -60,7 +82,7 @@ export function ProjectDetailsModal({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f1f3f5]/20 pb-3">
           <span className="rounded border border-[#f1f3f5] px-2 py-0.5 text-xs tracking-wider">
-            {isCompleted ? 'STATUS: CONCLUÍDO' : 'STATUS: EM ANDAMENTO'}
+            {transition.badgeLabel}
           </span>
           <SketchButton
             variant="outline"
@@ -68,7 +90,7 @@ export function ProjectDetailsModal({
             disabled={pending}
             onClick={handleToggleStatus}
           >
-            {isCompleted ? 'REABRIR PROJETO ⟲' : 'CONCLUIR PROJETO ✓'}
+            {transition.actionLabel}
           </SketchButton>
         </div>
 

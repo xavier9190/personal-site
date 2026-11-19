@@ -40,6 +40,10 @@ export async function deleteProjectAction(id: string) {
   return run((s) => s.deleteProject(id), 'ERRO AO EXCLUIR PROJETO');
 }
 
+export async function startProjectAction(id: string) {
+  return run((s) => s.startProject(id), 'ERRO AO INICIAR PROJETO');
+}
+
 export async function completeProjectAction(id: string) {
   return run((s) => s.completeProject(id), 'ERRO AO CONCLUIR PROJETO');
 }

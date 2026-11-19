@@ -144,7 +144,7 @@ export function detectToolIntent(
     // Academic Project Delete
     if (text.includes('projeto') || text.includes('trabalho')) {
       const allProjects = academic.listProjectsByStatus();
-      const list = [...allProjects.inProgress, ...allProjects.completed];
+      const list = [...allProjects.inProgress, ...allProjects.planned, ...allProjects.completed];
       // Search matching by title
       const found = list.find((p) => text.includes(p.title.toLowerCase())) || list[0];
       if (found) {
@@ -160,7 +160,7 @@ export function detectToolIntent(
     // Milestone Delete
     if (text.includes('marco')) {
       const allProjects = academic.listProjectsByStatus();
-      for (const p of [...allProjects.inProgress, ...allProjects.completed]) {
+      for (const p of [...allProjects.inProgress, ...allProjects.planned, ...allProjects.completed]) {
         for (const m of p.milestones) {
           if (text.includes(m.title.toLowerCase()) || text.includes(m.id)) {
             return {
@@ -457,7 +457,7 @@ export function detectToolIntent(
     (text.includes('ok') || text.includes('concluído') || text.includes('concluido'))
   ) {
     const projects = academic.listProjectsByStatus();
-    for (const p of [...projects.inProgress, ...projects.completed]) {
+    for (const p of [...projects.inProgress, ...projects.planned, ...projects.completed]) {
       for (const m of p.milestones) {
         if (text.includes(m.title.toLowerCase()) || text.includes('1') || text.includes(m.id)) {
           return {

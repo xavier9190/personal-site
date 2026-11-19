@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { SketchModal } from '@/components/sketch/SketchModal';
 import { SketchButton } from '@/components/sketch/SketchButton';
-import type { AcademicProjectView, ProjectLinkInput } from '../service';
+import type { AcademicProjectStatus, AcademicProjectView, ProjectLinkInput } from '../service';
 import { createProjectAction, updateProjectAction } from '../actions';
 
 export interface ProjectFormModalProps {
@@ -15,6 +15,12 @@ export interface ProjectFormModalProps {
 const inputClass =
   'w-full rounded-md border-2 border-[#f1f3f5] bg-[#121212] px-3 py-2 text-xs text-[#f1f3f5] focus:outline-none';
 
+const STATUS_OPTIONS: Array<{ value: AcademicProjectStatus; label: string }> = [
+  { value: 'IN_PROGRESS', label: 'EM ANDAMENTO' },
+  { value: 'PLANNED', label: 'QUERO FAZER' },
+  { value: 'COMPLETED', label: 'JÁ ACABADO' },
+];
+
 export function ProjectFormModal({
   isOpen,
   onClose,
@@ -23,6 +29,7 @@ export function ProjectFormModal({
   const isEditing = Boolean(initialProject);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<AcademicProjectStatus>('IN_PROGRESS');
   const [finalDeliveryDate, setFinalDeliveryDate] = useState('');
   const [groupInput, setGroupInput] = useState('');
   const [links, setLinks] = useState<ProjectLinkInput[]>([]);
@@ -34,12 +41,14 @@ export function ProjectFormModal({
     if (initialProject) {
       setTitle(initialProject.title);
       setDescription(initialProject.description);
+      setStatus(initialProject.status);
       setFinalDeliveryDate(initialProject.finalDeliveryDate ?? '');
       setGroupInput(initialProject.groupMembersList.join(', '));
       setLinks(initialProject.links.map((l) => ({ id: l.id, label: l.label, url: l.url })));
     } else {
       setTitle('');
       setDescription('');
+      setStatus('IN_PROGRESS');
       setFinalDeliveryDate('');
       setGroupInput('');
       setLinks([]);
@@ -74,6 +83,7 @@ export function ProjectFormModal({
     const payload = {
       title,
       description,
+      status,
       finalDeliveryDate: finalDeliveryDate.trim() || null,
       groupMembers,
       links: validLinks,
@@ -96,6 +106,31 @@ export function ProjectFormModal({
       title={isEditing ? 'EDITAR PROJETO' : 'NOVO PROJETO'}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <span className="mb-1 block text-xs">STATUS DO PROJETO</span>
+          <div className="flex flex-wrap gap-2">
+            {(isEditing ? STATUS_OPTIONS : STATUS_OPTIONS.filter((opt) => opt.value !== 'COMPLETED')).map(
+              (option) => {
+                const active = status === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setStatus(option.value)}
+                    className={`min-h-[34px] rounded-md border-2 px-3 py-1 text-xs tracking-wider transition-colors ${
+                      active
+                        ? 'border-[#f1f3f5] bg-[#f1f3f5] text-[#121212] font-bold'
+                        : 'border-[#f1f3f5]/50 bg-[#121212] text-[#f1f3f5] hover:border-[#f1f3f5]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              },
+            )}
+          </div>
+        </div>
+
         <div>
           <label htmlFor="p-title" className="mb-1 block text-xs">TÍTULO DO PROJETO</label>
           <input

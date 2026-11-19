@@ -56,24 +56,26 @@ export class AcademicService {
     this.repo.deleteProject(id);
   }
 
-  completeProject(id: string): void {
+  private setProjectStatus(id: string, status: AcademicProjectRecord['status']): void {
     const existing = this.repo.getProjectById(id);
     if (!existing) throw new Error(`PROJETO NÃO ENCONTRADO: ${id}`);
     this.repo.updateProject(id, {
       ...existing,
-      status: 'COMPLETED',
+      status,
       updatedAt: new Date().toISOString(),
     });
   }
 
+  startProject(id: string): void {
+    this.setProjectStatus(id, 'IN_PROGRESS');
+  }
+
+  completeProject(id: string): void {
+    this.setProjectStatus(id, 'COMPLETED');
+  }
+
   reopenProject(id: string): void {
-    const existing = this.repo.getProjectById(id);
-    if (!existing) throw new Error(`PROJETO NÃO ENCONTRADO: ${id}`);
-    this.repo.updateProject(id, {
-      ...existing,
-      status: 'IN_PROGRESS',
-      updatedAt: new Date().toISOString(),
-    });
+    this.setProjectStatus(id, 'IN_PROGRESS');
   }
 
   addMilestone(
@@ -146,6 +148,7 @@ export class AcademicService {
   }
 
   listProjectsByStatus(): {
+    planned: AcademicProjectView[];
     inProgress: AcademicProjectView[];
     completed: AcademicProjectView[];
   } {
@@ -156,6 +159,7 @@ export class AcademicService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return {
+      planned: views.filter((p) => p.status === 'PLANNED'),
       inProgress: views.filter((p) => p.status === 'IN_PROGRESS'),
       completed: views.filter((p) => p.status === 'COMPLETED'),
     };

@@ -6,7 +6,7 @@ export const academicProjects = sqliteTable('academic_projects', {
   description: text('description').notNull(),
   finalDeliveryDate: text('final_delivery_date'),
   groupMembers: text('group_members').notNull().default('[]'),
-  status: text('status', { enum: ['IN_PROGRESS', 'COMPLETED'] })
+  status: text('status', { enum: ['PLANNED', 'IN_PROGRESS', 'COMPLETED'] })
     .notNull()
     .default('IN_PROGRESS'),
   createdAt: text('created_at').notNull(),

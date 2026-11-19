@@ -37,7 +37,7 @@ Operação de leitura, criação, atualização ou exclusão executada pelo assi
 _Avoid_: Automação oculta
 
 **Projeto Acadêmico (Academic Project)**:
-Trabalho ou disciplina da faculdade com título, descrição curta, data de entrega final, integrantes do grupo, links externos customizáveis (`GitHub`, `Drive`, etc.) e status (`Em Andamento` ou `Já Acabado`).
+Trabalho ou disciplina da faculdade com título, descrição curta, data de entrega final, integrantes do grupo, links externos customizáveis (`GitHub`, `Drive`, etc.) e status (`Quero Fazer`, `Em Andamento` ou `Já Acabado`).
 _Avoid_: Tarefa avulsa
 
 **Marco de Projeto (Project Milestone)**:

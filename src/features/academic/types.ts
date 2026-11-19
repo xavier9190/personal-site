@@ -6,7 +6,8 @@ export type AcademicProjectRecord = typeof schema.academicProjects.$inferSelect;
 export type ProjectMilestoneRecord = typeof schema.projectMilestones.$inferSelect;
 export type ProjectLinkRecord = typeof schema.projectLinks.$inferSelect;
 
-export type AcademicProjectStatus = 'IN_PROGRESS' | 'COMPLETED';
+export const academicProjectStatusSchema = z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED']);
+export type AcademicProjectStatus = z.infer<typeof academicProjectStatusSchema>;
 
 const pureDateSchema = z.string().refine((val) => {
   try {
@@ -29,9 +30,12 @@ export const createProjectSchema = z.object({
   finalDeliveryDate: pureDateSchema.nullable().optional(),
   groupMembers: z.array(z.string().trim().min(1)).default([]),
   links: z.array(projectLinkInputSchema).default([]),
+  status: academicProjectStatusSchema.default('IN_PROGRESS'),
 });
 
-export const updateProjectSchema = createProjectSchema.partial();
+export const updateProjectSchema = createProjectSchema.partial().extend({
+  status: academicProjectStatusSchema.optional(),
+});
 
 export const createMilestoneSchema = z.object({
   projectId: z.string().min(1, 'ID DO PROJETO OBRIGATÓRIO'),
