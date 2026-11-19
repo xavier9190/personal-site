@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { parseBRLToCents } from '@/lib/currency';
+import { requireSessionAuth } from '@/lib/session-auth';
 import {
   FinancesService,
   type CreateTransactionInput,
@@ -24,6 +25,7 @@ export interface TransactionFormPayload {
 export async function createTransactionAction(
   raw: TransactionFormPayload,
 ): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const amountCents = parseBRLToCents(raw.amountBRL);
     const service = new FinancesService();
@@ -51,6 +53,7 @@ export async function updateTransactionAction(
   id: string,
   raw: TransactionFormPayload,
 ): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const amountCents = parseBRLToCents(raw.amountBRL);
     const service = new FinancesService();
@@ -74,6 +77,7 @@ export async function updateTransactionAction(
 }
 
 export async function deleteTransactionAction(id: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const service = new FinancesService();
     service.deleteTransaction(id);
@@ -92,6 +96,7 @@ export async function toggleHideBalanceAction(): Promise<{
   ok: boolean;
   hideBalance: boolean;
 }> {
+  await requireSessionAuth();
   const service = new FinancesService();
   const hideBalance = service.toggleHideBalance();
   revalidatePath('/financas');
