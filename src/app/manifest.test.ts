@@ -134,16 +134,22 @@ describe('PWA Web App Manifest contract (Seam 3)', () => {
     );
   });
 
-  it('renders the /offline fallback page in monochrome Sketch style with a reconnect action', async () => {
+  it('renders the /offline fallback page in monochrome Sketch style with a plain reconnect link', async () => {
     const offlinePagePath = path.resolve(process.cwd(), 'src', 'app', 'offline', 'page.tsx');
     expect(existsSync(offlinePagePath), 'src/app/offline/page.tsx must exist').toBe(true);
+
+    const source = readFileSync(offlinePagePath, 'utf8');
+    expect(source).not.toMatch(/['"]use client['"]/);
 
     const { default: OfflinePage } = await import('./offline/page');
     const html = renderToStaticMarkup(React.createElement(OfflinePage));
 
     expect(html).toContain('OFFLINE');
     expect(html).toContain('RECONECTAR');
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>[\s\S]*RECONECTAR[\s\S]*<\/a>/);
     expect(html).toContain('#121212');
     expect(html).toContain('#f1f3f5');
+    expect(html).toContain('#868e96');
+    expect(html).toContain('Excalifont');
   });
 });
