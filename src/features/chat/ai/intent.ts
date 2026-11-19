@@ -23,11 +23,11 @@ export interface DetectedToolIntent {
   explanation: string;
 }
 
-export function detectToolIntent(
+export async function detectToolIntent(
   userPrompt: string,
   attachments: ChatAttachment[] = [],
   db: AppDatabase = getDb(),
-): DetectedToolIntent | null {
+): Promise<DetectedToolIntent | null> {
   const text = userPrompt.trim().toLowerCase();
   const todayRecife = toRecifeDateString();
 
@@ -143,7 +143,7 @@ export function detectToolIntent(
   if (isDeleteIntent) {
     // Academic Project Delete
     if (text.includes('projeto') || text.includes('trabalho')) {
-      const allProjects = academic.listProjectsByStatus();
+      const allProjects = await academic.listProjectsByStatus();
       const list = [...allProjects.inProgress, ...allProjects.planned, ...allProjects.completed];
       // Search matching by title
       const found = list.find((p) => text.includes(p.title.toLowerCase())) || list[0];
@@ -159,7 +159,7 @@ export function detectToolIntent(
 
     // Milestone Delete
     if (text.includes('marco')) {
-      const allProjects = academic.listProjectsByStatus();
+      const allProjects = await academic.listProjectsByStatus();
       for (const p of [...allProjects.inProgress, ...allProjects.planned, ...allProjects.completed]) {
         for (const m of p.milestones) {
           if (text.includes(m.title.toLowerCase()) || text.includes(m.id)) {
@@ -176,7 +176,7 @@ export function detectToolIntent(
 
     // Calendar Event Delete
     if (text.includes('evento') || text.includes('agenda') || text.includes('reunião') || text.includes('reuniao')) {
-      const events = calendar.listEvents();
+      const events = await calendar.listEvents();
       const found = events.find((e) => text.includes(e.title.toLowerCase())) || events[0];
       if (found) {
         return {
@@ -190,7 +190,7 @@ export function detectToolIntent(
 
     // Transaction Delete
     if (text.includes('transação') || text.includes('transacao') || text.includes('gasto') || text.includes('almoço') || text.includes('uber')) {
-      const txs = finances.listTransactions();
+      const txs = await finances.listTransactions();
       const found = txs.find((t) => text.includes(t.description.toLowerCase())) || txs[0];
       if (found) {
         return {
@@ -204,7 +204,7 @@ export function detectToolIntent(
 
     // Payable Bill Delete
     if (text.includes('conta')) {
-      const bills = finances.listPayableBills();
+      const bills = await finances.listPayableBills();
       const found = bills.find((b) => text.includes(b.title.toLowerCase())) || bills[0];
       if (found) {
         return {
@@ -218,7 +218,7 @@ export function detectToolIntent(
 
     // Installment Plan Delete
     if (text.includes('parcelamento') || text.includes('parcela')) {
-      const plans = finances.listInstallmentPlans();
+      const plans = await finances.listInstallmentPlans();
       const found = plans.find((p) => text.includes(p.description.toLowerCase())) || plans[0];
       if (found) {
         return {
@@ -232,7 +232,7 @@ export function detectToolIntent(
 
     // Shopping Item Delete
     if (text.includes('item') || text.includes('wishlist') || text.includes('compras') || text.includes('teclado') || text.includes('monitor')) {
-      const items = shopping.listItemsBySection();
+      const items = await shopping.listItemsBySection();
       const all = [...items.wishlist, ...items.inTransit, ...items.delivered];
       const found = all.find((i) => text.includes(i.name.toLowerCase())) || all[0];
       if (found) {
@@ -365,7 +365,7 @@ export function detectToolIntent(
     (text.includes('marca') || text.includes('marcar') || text.includes('pagar') || text.includes('paga')) &&
     text.includes('conta')
   ) {
-    const bills = finances.listPayableBills();
+    const bills = await finances.listPayableBills();
     const found = bills.find((b) => text.includes(b.title.toLowerCase())) || bills[0];
     if (found) {
       return {
@@ -405,7 +405,7 @@ export function detectToolIntent(
   // -------------------------------------------------------------
   // Complete / Reopen Project
   if (text.includes('concluir projeto') || text.includes('finalizar projeto')) {
-    const projects = academic.listProjectsByStatus().inProgress;
+    const projects = (await academic.listProjectsByStatus()).inProgress;
     const found = projects.find((p) => text.includes(p.title.toLowerCase())) || projects[0];
     if (found) {
       return {
@@ -418,7 +418,7 @@ export function detectToolIntent(
   }
 
   if (text.includes('reabrir projeto')) {
-    const projects = academic.listProjectsByStatus().completed;
+    const projects = (await academic.listProjectsByStatus()).completed;
     const found = projects.find((p) => text.includes(p.title.toLowerCase())) || projects[0];
     if (found) {
       return {
@@ -432,7 +432,7 @@ export function detectToolIntent(
 
   // Add Milestone
   if (text.includes('adicionar marco') || text.includes('adiciona marco') || text.includes('novo marco')) {
-    const projects = academic.listProjectsByStatus().inProgress;
+    const projects = (await academic.listProjectsByStatus()).inProgress;
     const found = projects.find((p) => text.includes(p.title.toLowerCase())) || projects[0];
     if (found) {
       const titleMatch = text.match(/marco\s+([a-zA-Zá-úÁ-Ú0-9\s]+?)(?:\s+dia|$)/i);
@@ -456,7 +456,7 @@ export function detectToolIntent(
     text.includes('marco') &&
     (text.includes('ok') || text.includes('concluído') || text.includes('concluido'))
   ) {
-    const projects = academic.listProjectsByStatus();
+    const projects = await academic.listProjectsByStatus();
     for (const p of [...projects.inProgress, ...projects.planned, ...projects.completed]) {
       for (const m of p.milestones) {
         if (text.includes(m.title.toLowerCase()) || text.includes('1') || text.includes(m.id)) {
@@ -525,7 +525,7 @@ export function detectToolIntent(
 
   // Mark Purchased
   if (text.includes('comprei') && (text.includes('mercado livre') || text.includes('shopee') || text.includes('aliexpress') || text.includes('entrega'))) {
-    const items = shopping.listItemsBySection().wishlist;
+    const items = (await shopping.listItemsBySection()).wishlist;
     const found = items.find((i) => text.includes(i.name.toLowerCase())) || items[0];
     if (found) {
       let store = 'MERCADO LIVRE';
@@ -552,7 +552,7 @@ export function detectToolIntent(
 
   // Mark Delivered (Chegou!)
   if (text.includes('chegou') || text.includes('entregue') || text.includes('recebi a encomenda')) {
-    const inTransit = shopping.listItemsBySection().inTransit;
+    const inTransit = (await shopping.listItemsBySection()).inTransit;
     const found = inTransit.find((i) => text.includes(i.name.toLowerCase())) || inTransit[0];
     if (found) {
       return {
@@ -566,7 +566,7 @@ export function detectToolIntent(
 
   // Revert Delivered
   if (text.includes('reverter entrega') || text.includes('não chegou')) {
-    const delivered = shopping.listItemsBySection().delivered;
+    const delivered = (await shopping.listItemsBySection()).delivered;
     const found = delivered.find((i) => text.includes(i.name.toLowerCase())) || delivered[0];
     if (found) {
       return {

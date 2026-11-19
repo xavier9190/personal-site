@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireSessionAuth } from '@/lib/session-auth';
 import { ChatService } from './service';
 import {
   cancelPendingAction,
@@ -25,9 +26,10 @@ function revalidateAllModules() {
 }
 
 export async function createNewThreadAction(title?: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const service = new ChatService();
-    const thread = service.createThread(title);
+    const thread = await service.createThread(title);
     revalidateAllModules();
     return { ok: true, threadId: thread.id };
   } catch (err) {
@@ -39,9 +41,10 @@ export async function createNewThreadAction(title?: string): Promise<ActionResul
 }
 
 export async function clearThreadMessagesAction(threadId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const service = new ChatService();
-    service.clearThreadMessages(threadId);
+    await service.clearThreadMessages(threadId);
     revalidateAllModules();
     return { ok: true, threadId };
   } catch (err) {
@@ -53,8 +56,9 @@ export async function clearThreadMessagesAction(threadId: string): Promise<Actio
 }
 
 export async function confirmPendingActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
-    const result = confirmPendingAction(actionId);
+    const result = await confirmPendingAction(actionId);
     revalidateAllModules();
     return { ok: result.ok, error: result.ok ? undefined : result.message };
   } catch (err) {
@@ -66,8 +70,9 @@ export async function confirmPendingActionAction(actionId: string): Promise<Acti
 }
 
 export async function cancelPendingActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
-    const result = cancelPendingAction(actionId);
+    const result = await cancelPendingAction(actionId);
     revalidateAllModules();
     return { ok: result.ok, error: result.ok ? undefined : result.message };
   } catch (err) {
@@ -79,8 +84,9 @@ export async function cancelPendingActionAction(actionId: string): Promise<Actio
 }
 
 export async function undoActionAction(actionId: string): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
-    const result = undoChatAction(actionId);
+    const result = await undoChatAction(actionId);
     revalidateAllModules();
     return { ok: result.ok, error: result.ok ? undefined : result.message };
   } catch (err) {
@@ -96,6 +102,7 @@ export async function executeDirectToolAction(
   toolName: string,
   rawArgs: unknown,
 ): Promise<ActionResult> {
+  await requireSessionAuth();
   try {
     const result = await executeChatTool(toolName, rawArgs, { threadId });
     revalidateAllModules();

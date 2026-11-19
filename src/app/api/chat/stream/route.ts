@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { requireSessionAuth, UnauthorizedSessionError } from '@/lib/session-auth';
 import { ChatService } from '@/features/chat/service';
 import { CalendarService } from '@/features/calendar/service';
 import { FinancesService } from '@/features/finances/service';
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    await requireSessionAuth(req);
     const body = await req.json();
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const attachments: ChatAttachment[] = Array.isArray(body.attachments)
@@ -32,11 +34,11 @@ export async function POST(req: NextRequest) {
     const financesService = new FinancesService();
 
     const thread = body.threadId
-      ? chatService.getThread(body.threadId) ?? chatService.getOrCreateDefaultThread()
-      : chatService.getOrCreateDefaultThread();
+      ? (await chatService.getThread(body.threadId)) ?? (await chatService.getOrCreateDefaultThread())
+      : await chatService.getOrCreateDefaultThread();
 
     // Persist USER message
-    const userMsg = chatService.addMessage({
+    const userMsg = await chatService.addMessage({
       threadId: thread.id,
       role: 'USER',
       content: effectiveMessage,
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Detect tool intent (from text and/or attachments)
-    const detected = detectToolIntent(effectiveMessage, attachments);
+    const detected = await detectToolIntent(effectiveMessage, attachments);
     let executedToolCall: ToolExecutionResult | null = null;
     let toolPrefix = '';
 
@@ -66,13 +68,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const threadMessages = chatService.listMessages(thread.id);
+    const threadMessages = await chatService.listMessages(thread.id);
     const aiMessages: AIMessageInput[] = threadMessages.map((m) => ({
       role: m.role.toLowerCase() as 'user' | 'assistant' | 'system',
       content: m.content,
     }));
 
-    const context = buildChatContext(calendarService, financesService);
+    const context = await buildChatContext(calendarService, financesService);
     const aiProvider = new AntigravityAIProvider();
 
     const encoder = new TextEncoder();
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
           const toolCalls = executedToolCall ? [executedToolCall] : [];
 
           // Persist ASSISTANT message
-          const assistantMsg = chatService.addMessage({
+          const assistantMsg = await chatService.addMessage({
             threadId: thread.id,
             role: 'ASSISTANT',
             content: accumulatedContent,
@@ -155,6 +157,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    if (err instanceof UnauthorizedSessionError) {
+      return new Response(JSON.stringify({ ok: false, error: err.message }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : 'ERRO INTERNO' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireSessionAuth } from '@/lib/session-auth';
 import { CalendarService, type CalendarItem, type EventInput } from './service';
 
 export interface CalendarActionResult<T = unknown> {
@@ -9,9 +10,12 @@ export interface CalendarActionResult<T = unknown> {
   error?: string;
 }
 
-function run<T>(fn: (service: CalendarService) => T, fallback: string): CalendarActionResult<T> {
+async function run<T>(
+  fn: (service: CalendarService) => Promise<T>,
+  fallback: string,
+): Promise<CalendarActionResult<T>> {
   try {
-    const data = fn(new CalendarService());
+    const data = await fn(new CalendarService());
     revalidatePath('/calendario');
     revalidatePath('/');
     return { ok: true, data };
@@ -26,17 +30,21 @@ function run<T>(fn: (service: CalendarService) => T, fallback: string): Calendar
 }
 
 export async function listCalendarItemsAction(from: string, to: string): Promise<CalendarItem[]> {
+  await requireSessionAuth();
   return new CalendarService().listItems(from, to);
 }
 
 export async function createEventAction(input: EventInput) {
+  await requireSessionAuth();
   return run((s) => s.createEvent(input), 'ERRO AO CRIAR EVENTO');
 }
 
 export async function updateEventAction(id: string, input: EventInput) {
+  await requireSessionAuth();
   return run((s) => s.updateEvent(id, input), 'ERRO AO EDITAR EVENTO');
 }
 
 export async function deleteEventAction(id: string) {
+  await requireSessionAuth();
   return run((s) => s.deleteEvent(id), 'ERRO AO EXCLUIR EVENTO');
 }

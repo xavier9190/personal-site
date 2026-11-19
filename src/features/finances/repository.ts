@@ -13,126 +13,139 @@ const DEFAULT_PREF_ID = 'default';
 export class FinancesRepository {
   constructor(private readonly db: AppDatabase) {}
 
-  insertTransaction(record: TransactionRecord): void {
-    this.db.insert(schema.transactions).values(record).run();
+  async insertTransaction(record: TransactionRecord): Promise<void> {
+    await this.db.insert(schema.transactions).values(record);
   }
 
-  getTransactionById(id: string): TransactionRecord | undefined {
-    return this.db.select().from(schema.transactions).where(eq(schema.transactions.id, id)).get();
-  }
-
-  getTransactionByBillId(billId: string): TransactionRecord | undefined {
-    return this.db
+  async getTransactionById(id: string): Promise<TransactionRecord | undefined> {
+    const [row] = await this.db
       .select()
       .from(schema.transactions)
-      .where(eq(schema.transactions.payableBillId, billId))
-      .get();
+      .where(eq(schema.transactions.id, id));
+    return row;
   }
 
-  updateTransaction(id: string, record: TransactionRecord): void {
-    this.db.update(schema.transactions).set(record).where(eq(schema.transactions.id, id)).run();
+  async getTransactionByBillId(billId: string): Promise<TransactionRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.transactions)
+      .where(eq(schema.transactions.payableBillId, billId));
+    return row;
   }
 
-  deleteTransaction(id: string): void {
-    this.db.delete(schema.transactions).where(eq(schema.transactions.id, id)).run();
+  async updateTransaction(id: string, record: TransactionRecord): Promise<void> {
+    await this.db
+      .update(schema.transactions)
+      .set(record)
+      .where(eq(schema.transactions.id, id));
   }
 
-  deleteTransactionsByBillId(billId: string): void {
-    this.db.delete(schema.transactions).where(eq(schema.transactions.payableBillId, billId)).run();
+  async deleteTransaction(id: string): Promise<void> {
+    await this.db.delete(schema.transactions).where(eq(schema.transactions.id, id));
   }
 
-  getAllTransactions(): TransactionRecord[] {
-    return this.db.select().from(schema.transactions).all();
+  async deleteTransactionsByBillId(billId: string): Promise<void> {
+    await this.db
+      .delete(schema.transactions)
+      .where(eq(schema.transactions.payableBillId, billId));
   }
 
-  insertPayableBill(record: PayableBillRecord): void {
-    this.db.insert(schema.payableBills).values(record).run();
+  async getAllTransactions(): Promise<TransactionRecord[]> {
+    return this.db.select().from(schema.transactions);
   }
 
-  getPayableBillById(id: string): PayableBillRecord | undefined {
-    return this.db.select().from(schema.payableBills).where(eq(schema.payableBills.id, id)).get();
+  async insertPayableBill(record: PayableBillRecord): Promise<void> {
+    await this.db.insert(schema.payableBills).values(record);
   }
 
-  updatePayableBill(id: string, record: PayableBillRecord): void {
-    this.db.update(schema.payableBills).set(record).where(eq(schema.payableBills.id, id)).run();
+  async getPayableBillById(id: string): Promise<PayableBillRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.payableBills)
+      .where(eq(schema.payableBills.id, id));
+    return row;
   }
 
-  deletePayableBill(id: string): void {
-    this.db.delete(schema.payableBills).where(eq(schema.payableBills.id, id)).run();
+  async updatePayableBill(id: string, record: PayableBillRecord): Promise<void> {
+    await this.db
+      .update(schema.payableBills)
+      .set(record)
+      .where(eq(schema.payableBills.id, id));
   }
 
-  getAllPayableBills(): PayableBillRecord[] {
-    return this.db.select().from(schema.payableBills).all();
+  async deletePayableBill(id: string): Promise<void> {
+    await this.db.delete(schema.payableBills).where(eq(schema.payableBills.id, id));
   }
 
-  insertCreditCard(record: CreditCardRecord): void {
-    this.db.insert(schema.creditCards).values(record).run();
+  async getAllPayableBills(): Promise<PayableBillRecord[]> {
+    return this.db.select().from(schema.payableBills);
   }
 
-  deleteCreditCard(id: string): void {
-    this.db.delete(schema.creditCards).where(eq(schema.creditCards.id, id)).run();
+  async insertCreditCard(record: CreditCardRecord): Promise<void> {
+    await this.db.insert(schema.creditCards).values(record);
   }
 
-  getAllCreditCards(): CreditCardRecord[] {
-    return this.db.select().from(schema.creditCards).all();
+  async deleteCreditCard(id: string): Promise<void> {
+    await this.db.delete(schema.creditCards).where(eq(schema.creditCards.id, id));
   }
 
-  insertInstallmentPlan(record: InstallmentPlanRecord): void {
-    this.db.insert(schema.installmentPlans).values(record).run();
+  async getAllCreditCards(): Promise<CreditCardRecord[]> {
+    return this.db.select().from(schema.creditCards);
   }
 
-  getInstallmentPlanById(id: string): InstallmentPlanRecord | undefined {
-    return this.db
+  async insertInstallmentPlan(record: InstallmentPlanRecord): Promise<void> {
+    await this.db.insert(schema.installmentPlans).values(record);
+  }
+
+  async getInstallmentPlanById(id: string): Promise<InstallmentPlanRecord | undefined> {
+    const [row] = await this.db
       .select()
       .from(schema.installmentPlans)
-      .where(eq(schema.installmentPlans.id, id))
-      .get();
+      .where(eq(schema.installmentPlans.id, id));
+    return row;
   }
 
-  updateInstallmentPlan(id: string, record: InstallmentPlanRecord): void {
-    this.db
+  async updateInstallmentPlan(id: string, record: InstallmentPlanRecord): Promise<void> {
+    await this.db
       .update(schema.installmentPlans)
       .set(record)
-      .where(eq(schema.installmentPlans.id, id))
-      .run();
+      .where(eq(schema.installmentPlans.id, id));
   }
 
-  deleteInstallmentPlan(id: string): void {
-    this.db.delete(schema.installmentPlans).where(eq(schema.installmentPlans.id, id)).run();
+  async deleteInstallmentPlan(id: string): Promise<void> {
+    await this.db
+      .delete(schema.installmentPlans)
+      .where(eq(schema.installmentPlans.id, id));
   }
 
-  getAllInstallmentPlans(): InstallmentPlanRecord[] {
-    return this.db.select().from(schema.installmentPlans).all();
+  async getAllInstallmentPlans(): Promise<InstallmentPlanRecord[]> {
+    return this.db.select().from(schema.installmentPlans);
   }
 
-  getHideBalance(): boolean {
-    const row = this.db
+  async getHideBalance(): Promise<boolean> {
+    const [row] = await this.db
       .select()
       .from(schema.financePreferences)
-      .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID))
-      .get();
+      .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID));
     return row?.hideBalance ?? false;
   }
 
-  toggleHideBalance(): boolean {
-    const existing = this.db
+  async toggleHideBalance(): Promise<boolean> {
+    const [existing] = await this.db
       .select()
       .from(schema.financePreferences)
-      .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID))
-      .get();
+      .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID));
 
     const nextValue = !(existing?.hideBalance ?? false);
     if (!existing) {
-      this.db
+      await this.db
         .insert(schema.financePreferences)
-        .values({ id: DEFAULT_PREF_ID, hideBalance: nextValue })
-        .run();
+        .values({ id: DEFAULT_PREF_ID, hideBalance: nextValue });
     } else {
-      this.db
+      await this.db
         .update(schema.financePreferences)
         .set({ hideBalance: nextValue })
-        .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID))
-        .run();
+        .where(eq(schema.financePreferences.id, DEFAULT_PREF_ID));
     }
     return nextValue;
   }

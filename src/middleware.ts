@@ -10,10 +10,11 @@ export async function middleware(request: NextRequest) {
 
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/fonts') ||
-    pathname.startsWith('/icons') ||
+    pathname.startsWith('/fonts/') ||
+    pathname.startsWith('/icons/') ||
     pathname === '/api/pin' ||
     pathname === '/pin' ||
+    pathname === '/offline' ||
     pathname === '/manifest.webmanifest' ||
     pathname === '/favicon.ico' ||
     pathname === '/robots.txt' ||

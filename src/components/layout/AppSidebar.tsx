@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getModuleByPath, MODULES } from '@/config/modules';
 import { LockHubButton } from '@/components/layout/LockHubButton';
+import { InstallPwaButton } from '@/components/layout/InstallPwaButton';
 import { cn } from '@/lib/utils';
 
 export function AppSidebar() {
   const pathname = usePathname() || '/';
-  if (pathname.startsWith('/pin')) {
+  if (pathname.startsWith('/pin') || pathname.startsWith('/offline')) {
     return null;
   }
 
@@ -64,7 +65,8 @@ export function AppSidebar() {
         <div className="h-[2px] w-full bg-[#f1f3f5]" />
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        <InstallPwaButton variant="desktop" />
         <LockHubButton variant="desktop" />
       </div>
     </aside>

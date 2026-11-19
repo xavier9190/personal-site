@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { parseBRLToCents } from '@/lib/currency';
+import { requireSessionAuth } from '@/lib/session-auth';
 import { FinancesService, type CreatePayableBillInput } from './service';
 
 export interface BillActionResult {
@@ -33,9 +34,12 @@ export interface InstallmentFormPayload {
   startMonth: string;
 }
 
-async function run(fn: (service: FinancesService) => void, fallback: string): Promise<BillActionResult> {
+async function run(
+  fn: (service: FinancesService) => Promise<unknown>,
+  fallback: string,
+): Promise<BillActionResult> {
   try {
-    fn(new FinancesService());
+    await fn(new FinancesService());
     revalidatePath('/financas');
     revalidatePath('/');
     return { ok: true };
@@ -45,9 +49,10 @@ async function run(fn: (service: FinancesService) => void, fallback: string): Pr
 }
 
 export async function createPayableBillAction(raw: BillFormPayload) {
+  await requireSessionAuth();
   return run(
     (s) =>
-      void s.createPayableBill({
+      s.createPayableBill({
         title: raw.title,
         billType: raw.billType,
         category: raw.category,
@@ -59,9 +64,10 @@ export async function createPayableBillAction(raw: BillFormPayload) {
 }
 
 export async function updatePayableBillAction(id: string, raw: BillFormPayload) {
+  await requireSessionAuth();
   return run(
     (s) =>
-      void s.updatePayableBill(id, {
+      s.updatePayableBill(id, {
         title: raw.title,
         billType: raw.billType,
         category: raw.category,
@@ -73,28 +79,33 @@ export async function updatePayableBillAction(id: string, raw: BillFormPayload) 
 }
 
 export async function togglePayableBillStatusAction(id: string, paid: boolean) {
+  await requireSessionAuth();
   return run(
-    (s) => void (paid ? s.markBillPaid(id) : s.markBillPending(id)),
+    (s) => (paid ? s.markBillPaid(id) : s.markBillPending(id)),
     'ERRO AO ATUALIZAR CONTA',
   );
 }
 
 export async function deletePayableBillAction(id: string) {
+  await requireSessionAuth();
   return run((s) => s.deletePayableBill(id), 'ERRO AO EXCLUIR CONTA');
 }
 
 export async function createCreditCardAction(raw: CardFormPayload) {
-  return run((s) => void s.createCreditCard(raw), 'ERRO AO SALVAR CARTÃO');
+  await requireSessionAuth();
+  return run((s) => s.createCreditCard(raw), 'ERRO AO SALVAR CARTÃO');
 }
 
 export async function deleteCreditCardAction(id: string) {
+  await requireSessionAuth();
   return run((s) => s.deleteCreditCard(id), 'ERRO AO EXCLUIR CARTÃO');
 }
 
 export async function createInstallmentPlanAction(raw: InstallmentFormPayload) {
+  await requireSessionAuth();
   return run(
     (s) =>
-      void s.createInstallmentPlan({
+      s.createInstallmentPlan({
         description: raw.description,
         category: raw.category,
         totalInstallments: raw.totalInstallments,
@@ -108,9 +119,10 @@ export async function createInstallmentPlanAction(raw: InstallmentFormPayload) {
 }
 
 export async function updateInstallmentPlanAction(id: string, raw: InstallmentFormPayload) {
+  await requireSessionAuth();
   return run(
     (s) =>
-      void s.updateInstallmentPlan(id, {
+      s.updateInstallmentPlan(id, {
         description: raw.description,
         category: raw.category,
         totalInstallments: raw.totalInstallments,
@@ -124,9 +136,11 @@ export async function updateInstallmentPlanAction(id: string, raw: InstallmentFo
 }
 
 export async function advanceInstallmentAction(id: string) {
-  return run((s) => void s.advanceInstallment(id), 'ERRO AO AVANÇAR PARCELA');
+  await requireSessionAuth();
+  return run((s) => s.advanceInstallment(id), 'ERRO AO AVANÇAR PARCELA');
 }
 
 export async function deleteInstallmentPlanAction(id: string) {
+  await requireSessionAuth();
   return run((s) => s.deleteInstallmentPlan(id), 'ERRO AO EXCLUIR PARCELAMENTO');
 }

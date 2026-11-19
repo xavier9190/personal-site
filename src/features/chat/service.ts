@@ -19,24 +19,22 @@ export interface AddMessageInput {
 export class ChatService {
   constructor(private readonly db: AppDatabase = getDb()) {}
 
-  listThreads(): ChatThreadRecord[] {
+  async listThreads(): Promise<ChatThreadRecord[]> {
     return this.db
       .select()
       .from(schema.chatThreads)
-      .orderBy(desc(schema.chatThreads.updatedAt))
-      .all();
+      .orderBy(desc(schema.chatThreads.updatedAt));
   }
 
-  getThread(id: string): ChatThreadRecord | null {
-    const thread = this.db
+  async getThread(id: string): Promise<ChatThreadRecord | null> {
+    const [thread] = await this.db
       .select()
       .from(schema.chatThreads)
-      .where(eq(schema.chatThreads.id, id))
-      .get();
+      .where(eq(schema.chatThreads.id, id));
     return thread ?? null;
   }
 
-  createThread(title: string = 'CONVERSA PRINCIPAL'): ChatThreadRecord {
+  async createThread(title: string = 'CONVERSA PRINCIPAL'): Promise<ChatThreadRecord> {
     const cleanTitle = (title.trim() || 'CONVERSA PRINCIPAL').toUpperCase();
     const now = new Date().toISOString();
     const record: ChatThreadRecord = {
@@ -45,32 +43,31 @@ export class ChatService {
       createdAt: now,
       updatedAt: now,
     };
-    this.db.insert(schema.chatThreads).values(record).run();
+    await this.db.insert(schema.chatThreads).values(record);
     return record;
   }
 
-  getOrCreateDefaultThread(): ChatThreadRecord {
-    const existing = this.listThreads();
+  async getOrCreateDefaultThread(): Promise<ChatThreadRecord> {
+    const existing = await this.listThreads();
     if (existing.length > 0) {
       return existing[0];
     }
     return this.createThread('CONVERSA PRINCIPAL');
   }
 
-  deleteThread(id: string): void {
-    this.db
+  async deleteThread(id: string): Promise<void> {
+    await this.db
       .delete(schema.chatThreads)
-      .where(eq(schema.chatThreads.id, id))
-      .run();
+      .where(eq(schema.chatThreads.id, id));
   }
 
-  addMessage(input: AddMessageInput): ChatMessageRecord {
+  async addMessage(input: AddMessageInput): Promise<ChatMessageRecord> {
     const content = input.content.trim();
     if (!content) {
       throw new Error('CONTEÚDO DA MENSAGEM NÃO PODE SER VAZIO');
     }
 
-    const thread = this.getThread(input.threadId);
+    const thread = await this.getThread(input.threadId);
     if (!thread) {
       throw new Error(`THREAD NÃO ENCONTRADA: ${input.threadId}`);
     }
@@ -86,67 +83,61 @@ export class ChatService {
       createdAt: now,
     };
 
-    this.db.insert(schema.chatMessages).values(record).run();
-    this.db
+    await this.db.insert(schema.chatMessages).values(record);
+    await this.db
       .update(schema.chatThreads)
       .set({ updatedAt: now })
-      .where(eq(schema.chatThreads.id, input.threadId))
-      .run();
+      .where(eq(schema.chatThreads.id, input.threadId));
 
     return record;
   }
 
-  listMessages(threadId?: string): ChatMessageRecord[] {
+  async listMessages(threadId?: string): Promise<ChatMessageRecord[]> {
     if (threadId) {
       return this.db
         .select()
         .from(schema.chatMessages)
         .where(eq(schema.chatMessages.threadId, threadId))
-        .orderBy(asc(schema.chatMessages.createdAt))
-        .all();
+        .orderBy(asc(schema.chatMessages.createdAt));
     }
     return this.db
       .select()
       .from(schema.chatMessages)
-      .orderBy(asc(schema.chatMessages.createdAt))
-      .all();
+      .orderBy(asc(schema.chatMessages.createdAt));
   }
 
-  getMessage(id: string): ChatMessageRecord | null {
-    const msg = this.db
+  async getMessage(id: string): Promise<ChatMessageRecord | null> {
+    const [msg] = await this.db
       .select()
       .from(schema.chatMessages)
-      .where(eq(schema.chatMessages.id, id))
-      .get();
+      .where(eq(schema.chatMessages.id, id));
     return msg ?? null;
   }
 
-  deleteMessage(id: string): void {
-    this.db
+  async deleteMessage(id: string): Promise<void> {
+    await this.db
       .delete(schema.chatMessages)
-      .where(eq(schema.chatMessages.id, id))
-      .run();
+      .where(eq(schema.chatMessages.id, id));
   }
 
-  clearThreadMessages(threadId: string): void {
-    this.db
+  async clearThreadMessages(threadId: string): Promise<void> {
+    await this.db
       .delete(schema.chatMessages)
-      .where(eq(schema.chatMessages.threadId, threadId))
-      .run();
+      .where(eq(schema.chatMessages.threadId, threadId));
   }
 
   // ==========================================
   // PENDING TOOL ACTIONS & UNDO ENGINE
   // ==========================================
 
-  createPendingAction(input: {
+  async createPendingAction(input: {
     id?: string;
     threadId: string;
     toolName: string;
     argsJson: string;
     status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE';
     undoSnapshotJson?: string | null;
-  }): PendingToolActionRecord {
+  }): Promise<PendingToolActionRecord> {
     const record: PendingToolActionRecord = {
       id: input.id ?? crypto.randomUUID(),
       threadId: input.threadId,
@@ -155,25 +146,24 @@ export class ChatService {
       status: input.status,
       undoSnapshotJson: input.undoSnapshotJson ?? null,
     };
-    this.db.insert(schema.pendingToolActions).values(record).run();
+    await this.db.insert(schema.pendingToolActions).values(record);
     return record;
   }
 
-  getPendingAction(id: string): PendingToolActionRecord | null {
-    const action = this.db
+  async getPendingAction(id: string): Promise<PendingToolActionRecord | null> {
+    const [action] = await this.db
       .select()
       .from(schema.pendingToolActions)
-      .where(eq(schema.pendingToolActions.id, id))
-      .get();
+      .where(eq(schema.pendingToolActions.id, id));
     return action ?? null;
   }
 
-  updatePendingActionStatus(
+  async updatePendingActionStatus(
     id: string,
     status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE',
     undoSnapshotJson?: string | null,
-  ): PendingToolActionRecord {
-    const existing = this.getPendingAction(id);
+  ): Promise<PendingToolActionRecord> {
+    const existing = await this.getPendingAction(id);
     if (!existing) {
       throw new Error(`AÇÃO PENDENTE NÃO ENCONTRADA: ${id}`);
     }
@@ -183,30 +173,27 @@ export class ChatService {
       updates.undoSnapshotJson = undoSnapshotJson;
     }
 
-    this.db
+    await this.db
       .update(schema.pendingToolActions)
       .set(updates)
-      .where(eq(schema.pendingToolActions.id, id))
-      .run();
+      .where(eq(schema.pendingToolActions.id, id));
 
     return { ...existing, ...updates };
   }
 
-  listPendingActions(threadId?: string): PendingToolActionRecord[] {
+  async listPendingActions(threadId?: string): Promise<PendingToolActionRecord[]> {
     if (threadId) {
       return this.db
         .select()
         .from(schema.pendingToolActions)
-        .where(eq(schema.pendingToolActions.threadId, threadId))
-        .all();
+        .where(eq(schema.pendingToolActions.threadId, threadId));
     }
-    return this.db.select().from(schema.pendingToolActions).all();
+    return this.db.select().from(schema.pendingToolActions);
   }
 
-  deletePendingAction(id: string): void {
-    this.db
+  async deletePendingAction(id: string): Promise<void> {
+    await this.db
       .delete(schema.pendingToolActions)
-      .where(eq(schema.pendingToolActions.id, id))
-      .run();
+      .where(eq(schema.pendingToolActions.id, id));
   }
 }

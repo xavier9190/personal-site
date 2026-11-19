@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "security:check": "tsx scripts/security-check.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -13,26 +15,30 @@
   "dependencies": {
     "@date-fns/tz": "^1.2.0",
     "@google/genai": "^3.2.0",
-    "better-sqlite3": "^13.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^0.475.0",
     "next": "^15.2.0",
+    "postgres": "^4.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
-    "zod": "^3.24.2"
+    "zod": "^4.6.7"
+  },
+  "overrides": {
+    "postcss": "^8.5.23"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@tailwindcss/postcss": "^4.0.9",
-    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.13.5",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "drizzle-kit": "^0.31.1",
-    "postcss": "^8.5.3",
+    "postcss": "^8.5.23",
     "tailwindcss": "^4.0.9",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2",
     "vitest": "^3.0.7"
   }

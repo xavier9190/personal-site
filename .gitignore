@@ -40,5 +40,7 @@ next-env.d.ts
 /data/uploads/*
 !/data/.gitkeep
 
-# local launcher scripts
-/scripts/
+# local launcher scripts (track TS/MJS repo automation scripts)
+/scripts/*
+!/scripts/*.ts
+!/scripts/*.mjs

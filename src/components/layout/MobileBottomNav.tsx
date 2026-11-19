@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getModuleByPath, MODULES } from '@/config/modules';
 import { LockHubButton } from '@/components/layout/LockHubButton';
+import { InstallPwaButton } from '@/components/layout/InstallPwaButton';
 import { cn } from '@/lib/utils';
 
 export function MobileBottomNav() {
   const pathname = usePathname() || '/';
-  if (pathname.startsWith('/pin')) {
+  if (pathname.startsWith('/pin') || pathname.startsWith('/offline')) {
     return null;
   }
 
@@ -40,6 +41,7 @@ export function MobileBottomNav() {
           </Link>
         );
       })}
+      <InstallPwaButton variant="mobile" />
       <LockHubButton variant="mobile" />
     </nav>
   );

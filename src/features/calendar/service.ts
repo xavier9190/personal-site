@@ -33,12 +33,15 @@ const datePart = (iso: string) => iso.slice(0, 10);
 export class CalendarService {
   constructor(private readonly db: AppDatabase = getDb()) {}
 
-  listEvents(): CalendarEventRecord[] {
-    return this.db.select().from(schema.calendarEvents).all();
+  async listEvents(): Promise<CalendarEventRecord[]> {
+    return this.db.select().from(schema.calendarEvents);
   }
 
-  getEvent(id: string): CalendarEventRecord {
-    const ev = this.db.select().from(schema.calendarEvents).where(eq(schema.calendarEvents.id, id)).get();
+  async getEvent(id: string): Promise<CalendarEventRecord> {
+    const [ev] = await this.db
+      .select()
+      .from(schema.calendarEvents)
+      .where(eq(schema.calendarEvents.id, id));
     if (!ev) throw new Error(`EVENTO NÃO ENCONTRADO: ${id}`);
     return ev;
   }
@@ -59,36 +62,36 @@ export class CalendarService {
     };
   }
 
-  createEvent(input: EventInput): CalendarEventRecord {
+  async createEvent(input: EventInput): Promise<CalendarEventRecord> {
     const now = new Date().toISOString();
     const record = { id: crypto.randomUUID(), ...this.toValues(input), createdAt: now, updatedAt: now };
-    this.db.insert(schema.calendarEvents).values(record).run();
+    await this.db.insert(schema.calendarEvents).values(record);
     return record;
   }
 
-  updateEvent(id: string, input: EventInput): CalendarEventRecord {
-    this.getEvent(id);
-    this.db
+  async updateEvent(id: string, input: EventInput): Promise<CalendarEventRecord> {
+    await this.getEvent(id);
+    await this.db
       .update(schema.calendarEvents)
       .set({ ...this.toValues(input), updatedAt: new Date().toISOString() })
-      .where(eq(schema.calendarEvents.id, id))
-      .run();
+      .where(eq(schema.calendarEvents.id, id));
     return this.getEvent(id);
   }
 
-  deleteEvent(id: string): void {
-    this.getEvent(id);
-    this.db.delete(schema.calendarEvents).where(eq(schema.calendarEvents.id, id)).run();
+  async deleteEvent(id: string): Promise<void> {
+    await this.getEvent(id);
+    await this.db.delete(schema.calendarEvents).where(eq(schema.calendarEvents.id, id));
   }
 
   /** Projeção unificada de [from, to] (YYYY-MM-DD, inclusive): eventos + Acadêmico + Finanças + Compras. */
-  listItems(from: string, to: string): CalendarItem[] {
-    const items: CalendarItem[] = [
-      ...this.eventItems(from, to),
-      ...this.academicItems(from, to),
-      ...this.financeItems(from, to),
-      ...this.shoppingItems(from, to),
-    ];
+  async listItems(from: string, to: string): Promise<CalendarItem[]> {
+    const [events, academic, finance, shopping] = await Promise.all([
+      this.eventItems(from, to),
+      this.academicItems(from, to),
+      this.financeItems(from, to),
+      this.shoppingItems(from, to),
+    ]);
+    const items: CalendarItem[] = [...events, ...academic, ...finance, ...shopping];
     return items.sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
@@ -98,9 +101,9 @@ export class CalendarService {
     );
   }
 
-  private eventItems(from: string, to: string): CalendarItem[] {
+  private async eventItems(from: string, to: string): Promise<CalendarItem[]> {
     const out: CalendarItem[] = [];
-    for (const ev of this.listEvents()) {
+    for (const ev of await this.listEvents()) {
       const start = datePart(ev.startAt);
       for (const date of expandOccurrenceDates(start, ev.recurrenceRule, ev.recurrenceUntil, from, to)) {
         out.push({
@@ -139,49 +142,49 @@ export class CalendarService {
     };
   }
 
-  private academicItems(from: string, to: string): CalendarItem[] {
-    const milestones = this.db
-      .select({ m: projectMilestones, p: academicProjects })
-      .from(projectMilestones)
-      .innerJoin(academicProjects, eq(projectMilestones.projectId, academicProjects.id))
-      .where(and(gte(projectMilestones.dueDate, from), lte(projectMilestones.dueDate, to)))
-      .all()
-      .map(({ m }) =>
-        this.projected(`milestone:${m.id}`, 'ACADEMIC_MILESTONE', m.title.toUpperCase(), m.dueDate,
-          SEMANTIC.academic, m.id, m.isCompleted, '/academico'),
-      );
-    const deliveries = this.db
-      .select()
-      .from(academicProjects)
-      .where(
-        and(
-          isNotNull(academicProjects.finalDeliveryDate),
-          gte(academicProjects.finalDeliveryDate, from),
-          lte(academicProjects.finalDeliveryDate, to),
+  private async academicItems(from: string, to: string): Promise<CalendarItem[]> {
+    const [milestoneRows, deliveryRows] = await Promise.all([
+      this.db
+        .select({ m: projectMilestones, p: academicProjects })
+        .from(projectMilestones)
+        .innerJoin(academicProjects, eq(projectMilestones.projectId, academicProjects.id))
+        .where(and(gte(projectMilestones.dueDate, from), lte(projectMilestones.dueDate, to))),
+      this.db
+        .select()
+        .from(academicProjects)
+        .where(
+          and(
+            isNotNull(academicProjects.finalDeliveryDate),
+            gte(academicProjects.finalDeliveryDate, from),
+            lte(academicProjects.finalDeliveryDate, to),
+          ),
         ),
-      )
-      .all()
-      .map((p) =>
-        this.projected(`delivery:${p.id}`, 'ACADEMIC_DELIVERY', `ENTREGA: ${p.title.toUpperCase()}`,
-          p.finalDeliveryDate!, SEMANTIC.academic, p.id, p.status === 'COMPLETED', '/academico'),
-      );
+    ]);
+
+    const milestones = milestoneRows.map(({ m }) =>
+      this.projected(`milestone:${m.id}`, 'ACADEMIC_MILESTONE', m.title.toUpperCase(), m.dueDate,
+        SEMANTIC.academic, m.id, m.isCompleted, '/academico'),
+    );
+    const deliveries = deliveryRows.map((p) =>
+      this.projected(`delivery:${p.id}`, 'ACADEMIC_DELIVERY', `ENTREGA: ${p.title.toUpperCase()}`,
+        p.finalDeliveryDate!, SEMANTIC.academic, p.id, p.status === 'COMPLETED', '/academico'),
+    );
     return [...milestones, ...deliveries];
   }
 
-  private financeItems(from: string, to: string): CalendarItem[] {
-    return this.db
+  private async financeItems(from: string, to: string): Promise<CalendarItem[]> {
+    const rows = await this.db
       .select()
       .from(payableBills)
-      .where(and(gte(payableBills.dueDate, from), lte(payableBills.dueDate, to)))
-      .all()
-      .map((b) =>
-        this.projected(`bill:${b.id}`, 'FINANCE_BILL', b.title.toUpperCase(), b.dueDate,
-          SEMANTIC.finance, b.id, b.status === 'PAID', '/financas'),
-      );
+      .where(and(gte(payableBills.dueDate, from), lte(payableBills.dueDate, to)));
+    return rows.map((b) =>
+      this.projected(`bill:${b.id}`, 'FINANCE_BILL', b.title.toUpperCase(), b.dueDate,
+        SEMANTIC.finance, b.id, b.status === 'PAID', '/financas'),
+    );
   }
 
-  private shoppingItems(from: string, to: string): CalendarItem[] {
-    return this.db
+  private async shoppingItems(from: string, to: string): Promise<CalendarItem[]> {
+    const rows = await this.db
       .select()
       .from(shoppingItems)
       .where(
@@ -191,12 +194,11 @@ export class CalendarService {
           gte(shoppingItems.estimatedDeliveryDate, from),
           lte(shoppingItems.estimatedDeliveryDate, to),
         ),
-      )
-      .all()
-      .map((s) =>
-        this.projected(`shopping:${s.id}`, 'SHOPPING_DELIVERY', `ENTREGA: ${s.name.toUpperCase()}`,
-          s.estimatedDeliveryDate!, SEMANTIC.shopping, s.id, false, '/compras'),
       );
+    return rows.map((s) =>
+      this.projected(`shopping:${s.id}`, 'SHOPPING_DELIVERY', `ENTREGA: ${s.name.toUpperCase()}`,
+        s.estimatedDeliveryDate!, SEMANTIC.shopping, s.id, false, '/compras'),
+    );
   }
 
   detectConflicts(items: CalendarItem[]) {
@@ -208,11 +210,12 @@ export class CalendarService {
   }
 
   /** Itens com horário que colidem com um candidato (ignora `ignoreEventId`). */
-  findConflictsFor(
+  async findConflictsFor(
     candidate: { date: string; startTime: string; endTime: string },
     ignoreEventId?: string,
-  ): CalendarItem[] {
-    return this.listItems(candidate.date, candidate.date).filter(
+  ): Promise<CalendarItem[]> {
+    const items = await this.listItems(candidate.date, candidate.date);
+    return items.filter(
       (i) =>
         !i.allDay &&
         i.startTime !== null &&
