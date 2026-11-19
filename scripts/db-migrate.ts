@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createPgClient, PG_MIGRATIONS_FOLDER } from '../src/db/pg';
 
 export async function runPgMigrations(
