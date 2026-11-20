@@ -7,6 +7,7 @@ import {
   buildNewInstallmentPlan,
   buildNewPayableBill,
   buildNewTransaction,
+  buildUpdatedCreditCard,
   buildUpdatedInstallmentPlan,
   buildUpdatedPayableBill,
   buildUpdatedTransaction,
@@ -36,6 +37,7 @@ import type {
   PayableBillRecord,
   TransactionFilters,
   TransactionRecord,
+  UpdateCreditCardInput,
   UpdateInstallmentPlanInput,
   UpdatePayableBillInput,
   UpdateTransactionInput,
@@ -48,6 +50,10 @@ export class FinancesService {
 
   constructor(db: AppDatabase = getDb()) {
     this.repo = new FinancesRepository(db);
+  }
+
+  async getTransaction(id: string): Promise<TransactionRecord | undefined> {
+    return this.repo.getTransactionById(id);
   }
 
   async createTransaction(input: CreateTransactionInput): Promise<TransactionRecord> {
@@ -71,6 +77,10 @@ export class FinancesService {
   async listTransactions(filters?: TransactionFilters): Promise<TransactionRecord[]> {
     const all = await this.repo.getAllTransactions();
     return filterTransactionsList(all, filters);
+  }
+
+  async getPayableBill(id: string): Promise<PayableBillRecord | undefined> {
+    return this.repo.getPayableBillById(id);
   }
 
   async createPayableBill(input: CreatePayableBillInput): Promise<PayableBillRecord> {
@@ -136,10 +146,33 @@ export class FinancesService {
     await this.repo.deletePayableBill(id);
   }
 
+  async getCreditCard(id: string): Promise<CreditCardRecord | undefined> {
+    return this.repo.getCreditCardById(id);
+  }
+
   async createCreditCard(input: CreateCreditCardInput): Promise<CreditCardRecord> {
     const record = buildNewCreditCard(input);
     await this.repo.insertCreditCard(record);
     return record;
+  }
+
+  async updateCreditCard(id: string, input: UpdateCreditCardInput): Promise<CreditCardRecord> {
+    const existing = await this.repo.getCreditCardById(id);
+    if (!existing) throw new Error(`CARTÃO NÃO ENCONTRADO: ${id}`);
+    const updated = buildUpdatedCreditCard(existing, input);
+    await this.repo.updateCreditCard(id, updated);
+    return updated;
+  }
+
+  async restoreCreditCard(record: CreditCardRecord): Promise<CreditCardRecord> {
+    const normalized = buildUpdatedCreditCard(record, {
+      name: record.name,
+      closingDay: record.closingDay,
+      dueDay: record.dueDay,
+      limitCents: record.limitCents,
+    });
+    await this.repo.insertCreditCard(normalized);
+    return normalized;
   }
 
   async deleteCreditCard(id: string): Promise<void> {
@@ -148,6 +181,10 @@ export class FinancesService {
 
   async listCreditCards(): Promise<CreditCardRecord[]> {
     return this.repo.getAllCreditCards();
+  }
+
+  async getInstallmentPlan(id: string): Promise<InstallmentPlanRecord | undefined> {
+    return this.repo.getInstallmentPlanById(id);
   }
 
   async createInstallmentPlan(input: CreateInstallmentPlanInput): Promise<InstallmentPlanRecord> {
@@ -209,7 +246,9 @@ export class FinancesService {
         (b) =>
           b.billType === 'CREDIT_CARD_BILL' &&
           b.creditCardId === card.id &&
-          b.competenceMonth === competenceMonth,
+          b.competenceMonth === competenceMonth &&
+          b.title === `FATURA ${card.name}` &&
+          b.category === 'CARTÃO DE CRÉDITO',
       );
       const existing = existingIdx >= 0 ? bills[existingIdx] : undefined;
 

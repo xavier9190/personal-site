@@ -528,4 +528,49 @@ describe('FinancesService seam (Transactions, Filters, Balance, Privacy)', () =>
       await close();
     }
   });
+
+  it('updates credit cards via updateCreditCard with canonical validation and rejects missing cards', async () => {
+    const { db, close } = await createPgliteTestDb();
+    const service = new FinancesService(db);
+
+    try {
+      const card = await service.createCreditCard({
+        name: 'Nubank',
+        closingDay: 8,
+        dueDay: 15,
+        limitCents: 300000,
+      });
+
+      const updated = await service.updateCreditCard(card.id, {
+        name: 'Nubank Ultravioleta',
+        closingDay: 10,
+        dueDay: 20,
+        limitCents: 800000,
+      });
+
+      expect(updated.id).toBe(card.id);
+      expect(updated.name).toBe('NUBANK ULTRAVIOLETA');
+      expect(updated.closingDay).toBe(10);
+      expect(updated.dueDay).toBe(20);
+      expect(updated.limitCents).toBe(800000);
+
+      const clearedLimit = await service.updateCreditCard(card.id, {
+        limitCents: null,
+      });
+      expect(clearedLimit.name).toBe('NUBANK ULTRAVIOLETA');
+      expect(clearedLimit.limitCents).toBeNull();
+
+      await expect(
+        service.updateCreditCard(card.id, { closingDay: 32 }),
+      ).rejects.toThrow();
+      await expect(
+        service.updateCreditCard(card.id, { name: '   ' }),
+      ).rejects.toThrow();
+      await expect(
+        service.updateCreditCard('non-existent-card', { name: 'Inter' }),
+      ).rejects.toThrow(/CARTÃO NÃO ENCONTRADO/);
+    } finally {
+      await close();
+    }
+  });
 });

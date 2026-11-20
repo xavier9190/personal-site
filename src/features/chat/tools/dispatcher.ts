@@ -111,7 +111,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteTransaction': {
-        const tx = (await this.finances.listTransactions()).find((t) => t.id === id);
+        const tx = await this.finances.getTransaction(id);
         if (tx) {
           description = `EXCLUIR TRANSAÇÃO: ${tx.description} (${formatCentsToBRL(tx.amountCents)})`;
           entitySnapshot = tx;
@@ -121,7 +121,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deletePayableBill': {
-        const bill = (await this.finances.listPayableBills()).find((b) => b.id === id);
+        const bill = await this.finances.getPayableBill(id);
         if (bill) {
           description = `EXCLUIR CONTA A PAGAR: ${bill.title} (${formatCentsToBRL(bill.amountCents)})`;
           entitySnapshot = bill;
@@ -131,12 +131,22 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteInstallmentPlan': {
-        const plan = (await this.finances.listInstallmentPlans()).find((p) => p.id === id);
+        const plan = await this.finances.getInstallmentPlan(id);
         if (plan) {
           description = `EXCLUIR PARCELAMENTO: ${plan.description}`;
           entitySnapshot = plan;
         } else {
           description = `EXCLUIR PARCELAMENTO: ID ${id}`;
+        }
+        break;
+      }
+      case 'deleteCreditCard': {
+        const card = await this.finances.getCreditCard(id);
+        if (card) {
+          description = `EXCLUIR CARTÃO: ${card.name}`;
+          entitySnapshot = card;
+        } else {
+          description = `EXCLUIR CARTÃO: ID ${id}`;
         }
         break;
       }
@@ -272,7 +282,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'updateTransaction': {
-        const before = (await this.finances.listTransactions()).find((t) => t.id === args.id);
+        const before = await this.finances.getTransaction(args.id);
         const updated = await this.finances.updateTransaction(args.id, args);
         description = `ATUALIZOU TRANSAÇÃO: ${updated.description}`;
         snapshot = { entity: 'TRANSACTION', operation: 'UPDATE', id: args.id, previousData: before };
@@ -286,8 +296,17 @@ export class ChatToolDispatcher {
         data = bill;
         break;
       }
+      case 'updatePayableBill': {
+        const before = await this.finances.getPayableBill(args.id);
+        if (!before) throw new Error(`CONTA NÃO ENCONTRADA: ${args.id}`);
+        const updated = await this.finances.updatePayableBill(args.id, args);
+        description = `ATUALIZOU CONTA A PAGAR: ${updated.title} (${formatCentsToBRL(updated.amountCents)})`;
+        snapshot = { entity: 'PAYABLE_BILL', operation: 'UPDATE', id: args.id, previousData: before };
+        data = updated;
+        break;
+      }
       case 'togglePayableBillStatus': {
-        const bill = (await this.finances.listPayableBills()).find((b) => b.id === args.id);
+        const bill = await this.finances.getPayableBill(args.id);
         if (!bill) throw new Error(`CONTA NÃO ENCONTRADA: ${args.id}`);
         const willBePaid = args.paid !== undefined ? args.paid : bill.status !== 'PAID';
         const updated = willBePaid
@@ -309,6 +328,55 @@ export class ChatToolDispatcher {
         description = `CRIOU PARCELAMENTO: ${plan.description} (${plan.totalInstallments}X DE ${formatCentsToBRL(plan.installmentAmountCents)})`;
         snapshot = { entity: 'INSTALLMENT_PLAN', operation: 'CREATE', id: plan.id };
         data = plan;
+        break;
+      }
+      case 'updateInstallmentPlan': {
+        const before = await this.finances.getInstallmentPlan(args.id);
+        if (!before) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.updateInstallmentPlan(args.id, args);
+        description = `ATUALIZOU PARCELAMENTO: ${updated.description} (${updated.totalInstallments}X DE ${formatCentsToBRL(updated.installmentAmountCents)})`;
+        snapshot = {
+          entity: 'INSTALLMENT_PLAN',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
+        break;
+      }
+      case 'advanceInstallment': {
+        const before = await this.finances.getInstallmentPlan(args.id);
+        if (!before) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.advanceInstallment(args.id);
+        description = `AVANÇOU PARCELA: ${updated.description} (${updated.paidInstallments}/${updated.totalInstallments})`;
+        snapshot = {
+          entity: 'INSTALLMENT_PLAN',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
+        break;
+      }
+      case 'createCreditCard': {
+        const card = await this.finances.createCreditCard(args);
+        description = `CRIOU CARTÃO: ${card.name} (FECHA DIA ${card.closingDay}, VENCE DIA ${card.dueDay})`;
+        snapshot = { entity: 'CREDIT_CARD', operation: 'CREATE', id: card.id };
+        data = card;
+        break;
+      }
+      case 'updateCreditCard': {
+        const before = await this.finances.getCreditCard(args.id);
+        if (!before) throw new Error(`CARTÃO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.updateCreditCard(args.id, args);
+        description = `ATUALIZOU CARTÃO: ${updated.name} (FECHA DIA ${updated.closingDay}, VENCE DIA ${updated.dueDay})`;
+        snapshot = {
+          entity: 'CREDIT_CARD',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
         break;
       }
 
@@ -590,6 +658,7 @@ export class ChatToolDispatcher {
     }
 
     const args = JSON.parse(action.argsJson);
+    let nextUndoSnapshotJson: string | undefined;
 
     switch (action.toolName) {
       case 'deleteCalendarEvent':
@@ -603,6 +672,17 @@ export class ChatToolDispatcher {
         break;
       case 'deleteInstallmentPlan':
         await this.finances.deleteInstallmentPlan(args.id);
+        break;
+      case 'deleteCreditCard':
+        await this.finances.deleteCreditCard(args.id);
+        if (action.undoSnapshotJson) {
+          nextUndoSnapshotJson = JSON.stringify({
+            entity: 'CREDIT_CARD',
+            operation: 'DELETE',
+            id: args.id,
+            previousData: JSON.parse(action.undoSnapshotJson),
+          });
+        }
         break;
       case 'deleteProject':
         await this.academic.deleteProject(args.id);
@@ -620,7 +700,7 @@ export class ChatToolDispatcher {
         throw new Error(`EXCLUSÃO NÃO RECONHECIDA: ${action.toolName}`);
     }
 
-    await this.chat.updatePendingActionStatus(actionId, 'CONFIRMED');
+    await this.chat.updatePendingActionStatus(actionId, 'CONFIRMED', nextUndoSnapshotJson);
     return { ok: true, message: 'ITEM EXCLUÍDO COM SUCESSO' };
   }
 
@@ -721,6 +801,18 @@ export class ChatToolDispatcher {
       case 'INSTALLMENT_PLAN': {
         if (snapshot.operation === 'CREATE') {
           await this.finances.deleteInstallmentPlan(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.finances.updateInstallmentPlan(snapshot.id, snapshot.previousData);
+        }
+        break;
+      }
+      case 'CREDIT_CARD': {
+        if (snapshot.operation === 'CREATE') {
+          await this.finances.deleteCreditCard(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.finances.updateCreditCard(snapshot.id, snapshot.previousData);
+        } else if (snapshot.operation === 'DELETE' && snapshot.previousData) {
+          await this.finances.restoreCreditCard(snapshot.previousData);
         }
         break;
       }
