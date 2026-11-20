@@ -151,7 +151,23 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteMilestone': {
-        description = `EXCLUIR MARCO ACADÊMICO: ID ${id}`;
+        const ms = await this.academic.getMilestoneById(id);
+        if (ms) {
+          description = `EXCLUIR MARCO ACADÊMICO: ${ms.title} (${ms.dueDate})`;
+          entitySnapshot = ms;
+        } else {
+          description = `EXCLUIR MARCO ACADÊMICO: ID ${id}`;
+        }
+        break;
+      }
+      case 'deleteProjectLink': {
+        const link = await this.academic.getProjectLinkById(id);
+        if (link) {
+          description = `EXCLUIR LINK DE PROJETO: ${link.label} (${link.url})`;
+          entitySnapshot = link;
+        } else {
+          description = `EXCLUIR LINK DE PROJETO: ID ${id}`;
+        }
         break;
       }
       case 'deleteWishlistItem': {
@@ -306,10 +322,32 @@ export class ChatToolDispatcher {
       }
       case 'updateProject': {
         const before = await this.academic.getProjectDetails(args.id);
-        const proj = await this.academic.updateProject(args.id, args);
+        if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
+        const proj = await this.academic.updateProject(args.id, {
+          title: args.title,
+          description: args.description,
+          finalDeliveryDate: args.finalDeliveryDate,
+          groupMembers: args.groupMembers,
+          links: args.links,
+          status: args.status,
+        });
         description = `ATUALIZOU PROJETO: ${proj.title}`;
         snapshot = { entity: 'ACADEMIC_PROJECT', operation: 'UPDATE', id: args.id, previousData: before };
         data = proj;
+        break;
+      }
+      case 'startProject': {
+        const before = await this.academic.getProjectDetails(args.id);
+        if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
+        await this.academic.startProject(args.id);
+        description = `INICIOU PROJETO: ${before.title}`;
+        snapshot = {
+          entity: 'ACADEMIC_PROJECT_STATUS',
+          operation: 'UPDATE',
+          id: args.id,
+          previousStatus: before.status,
+        };
+        data = { id: args.id, status: 'IN_PROGRESS' };
         break;
       }
       case 'completeProject': {
@@ -344,9 +382,24 @@ export class ChatToolDispatcher {
         const milestone = await this.academic.addMilestone(args.projectId, {
           title: args.title,
           dueDate: args.dueDate,
+          sortOrder: args.sortOrder,
         });
         description = `ADICIONOU MARCO: ${milestone.title} (${milestone.dueDate})`;
         snapshot = { entity: 'PROJECT_MILESTONE', operation: 'CREATE', id: milestone.id };
+        data = milestone;
+        break;
+      }
+      case 'updateMilestone': {
+        const before = await this.academic.getMilestoneById(args.id);
+        if (!before) throw new Error(`MARCO NÃO ENCONTRADO: ${args.id}`);
+        const milestone = await this.academic.updateMilestone(args.id, {
+          title: args.title,
+          dueDate: args.dueDate,
+          isCompleted: args.isCompleted,
+          sortOrder: args.sortOrder,
+        });
+        description = `ATUALIZOU MARCO: ${milestone.title}`;
+        snapshot = { entity: 'PROJECT_MILESTONE', operation: 'UPDATE', id: args.id, previousData: before };
         data = milestone;
         break;
       }
@@ -362,6 +415,28 @@ export class ChatToolDispatcher {
         data = milestone;
         break;
       }
+      case 'addProjectLink': {
+        const link = await this.academic.addProjectLink(args.projectId, {
+          label: args.label,
+          url: args.url,
+        });
+        description = `ADICIONOU LINK AO PROJETO: ${link.label} (${link.url})`;
+        snapshot = { entity: 'PROJECT_LINK', operation: 'CREATE', id: link.id };
+        data = link;
+        break;
+      }
+      case 'updateProjectLink': {
+        const before = await this.academic.getProjectLinkById(args.id);
+        if (!before) throw new Error(`LINK NÃO ENCONTRADO: ${args.id}`);
+        const link = await this.academic.updateProjectLink(args.id, {
+          label: args.label,
+          url: args.url,
+        });
+        description = `ATUALIZOU LINK DE PROJETO: ${link.label}`;
+        snapshot = { entity: 'PROJECT_LINK', operation: 'UPDATE', id: args.id, previousData: before };
+        data = link;
+        break;
+      }
 
       // SHOPPING
       case 'addWishlistItem': {
@@ -374,16 +449,67 @@ export class ChatToolDispatcher {
       case 'updateWishlistItem': {
         const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = await this.shopping.updateWishlistItem(args.id, args);
+        const item = await this.shopping.updateWishlistItem(args.id, {
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+        });
         description = `ATUALIZOU ITEM WISHLIST: ${item.name}`;
         snapshot = { entity: 'SHOPPING_ITEM', operation: 'UPDATE', id: args.id, previousData: before };
+        data = item;
+        break;
+      }
+      case 'addPurchasedItem': {
+        const item = await this.shopping.addPurchasedItem({
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+          purchasedAt: args.purchasedAt,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+          payment: args.payment,
+        });
+        description = `REGISTROU COMPRA EM TRÂNSITO: ${item.name} (${item.storeApp})`;
+        snapshot = {
+          entity: 'SHOPPING_PURCHASED_CREATE',
+          operation: 'CREATE',
+          id: item.id,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+        };
+        data = item;
+        break;
+      }
+      case 'updateInTransitItem': {
+        const sections = await this.shopping.listItemsBySection();
+        const before = sections.inTransit.find((i) => i.id === args.id);
+        const item = await this.shopping.updateInTransitItem(args.id, {
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+        });
+        description = `ATUALIZOU ENTREGA EM TRÂNSITO: ${item.name} (${item.storeApp})`;
+        snapshot = {
+          entity: 'SHOPPING_IN_TRANSIT_ITEM',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
         data = item;
         break;
       }
       case 'markPurchased': {
         const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = await this.shopping.markPurchased(args.id, args);
+        const item = await this.shopping.markPurchased(args.id, {
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+          purchasedAt: args.purchasedAt,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+          payment: args.payment,
+        });
         description = `COMPRA REALIZADA: ${item.name} (${item.storeApp})`;
         snapshot = {
           entity: 'SHOPPING_PURCHASED',
@@ -403,9 +529,16 @@ export class ChatToolDispatcher {
         break;
       }
       case 'revertDelivered': {
+        const sections = await this.shopping.listItemsBySection();
+        const before = sections.delivered.find((i) => i.id === args.id);
         const item = await this.shopping.revertDelivered(args.id);
         description = `REVERTEU PARA A CAMINHO: ${item.name}`;
-        snapshot = { entity: 'SHOPPING_REVERT_DELIVERED', operation: 'UPDATE', id: args.id };
+        snapshot = {
+          entity: 'SHOPPING_REVERT_DELIVERED',
+          operation: 'UPDATE',
+          id: args.id,
+          previousDeliveredAt: before?.deliveredAt ?? null,
+        };
         data = item;
         break;
       }
@@ -477,6 +610,9 @@ export class ChatToolDispatcher {
       case 'deleteMilestone':
         await this.academic.deleteMilestone(args.id);
         break;
+      case 'deleteProjectLink':
+        await this.academic.deleteProjectLink(args.id);
+        break;
       case 'deleteWishlistItem':
         await this.shopping.deleteItem(args.id);
         break;
@@ -507,6 +643,22 @@ export class ChatToolDispatcher {
   // ------------------------------------------------------------
   // Revert snapshot (UNDO ENGINE)
   // ------------------------------------------------------------
+  private async deleteFinancesByShoppingItemId(shoppingItemId: string): Promise<void> {
+    const txs = (await this.finances.listTransactions()).filter(
+      (t) => t.shoppingItemId === shoppingItemId,
+    );
+    for (const tx of txs) {
+      await this.finances.deleteTransaction(tx.id);
+    }
+
+    const plans = (await this.finances.listInstallmentPlans()).filter(
+      (p) => p.shoppingItemId === shoppingItemId,
+    );
+    for (const plan of plans) {
+      await this.finances.deleteInstallmentPlan(plan.id);
+    }
+  }
+
   async undoAction(actionId: string): Promise<{ ok: boolean; message: string }> {
     const action = await this.chat.getPendingAction(actionId);
     if (!action) {
@@ -576,13 +728,29 @@ export class ChatToolDispatcher {
         if (snapshot.operation === 'CREATE') {
           await this.academic.deleteProject(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          await this.academic.updateProject(snapshot.id, snapshot.previousData);
+          const p = snapshot.previousData;
+          await this.academic.updateProject(snapshot.id, {
+            title: p.title,
+            description: p.description,
+            finalDeliveryDate: p.finalDeliveryDate ?? null,
+            groupMembers: Array.isArray(p.groupMembersList)
+              ? p.groupMembersList
+              : typeof p.groupMembers === 'string'
+                ? JSON.parse(p.groupMembers)
+                : p.groupMembers,
+            links: Array.isArray(p.links)
+              ? p.links.map((l: { label: string; url: string }) => ({ label: l.label, url: l.url }))
+              : undefined,
+            status: p.status,
+          });
         }
         break;
       }
       case 'ACADEMIC_PROJECT_STATUS': {
         if (snapshot.previousStatus === 'COMPLETED') {
           await this.academic.completeProject(snapshot.id);
+        } else if (snapshot.previousStatus === 'PLANNED') {
+          await this.academic.updateProject(snapshot.id, { status: 'PLANNED' });
         } else {
           await this.academic.reopenProject(snapshot.id);
         }
@@ -591,11 +759,31 @@ export class ChatToolDispatcher {
       case 'PROJECT_MILESTONE': {
         if (snapshot.operation === 'CREATE') {
           await this.academic.deleteMilestone(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          const m = snapshot.previousData;
+          await this.academic.updateMilestone(snapshot.id, {
+            title: m.title,
+            dueDate: m.dueDate,
+            isCompleted: m.isCompleted,
+            sortOrder: m.sortOrder,
+          });
         }
         break;
       }
       case 'PROJECT_MILESTONE_STATUS': {
         await this.academic.toggleMilestone(snapshot.id);
+        break;
+      }
+      case 'PROJECT_LINK': {
+        if (snapshot.operation === 'CREATE') {
+          await this.academic.deleteProjectLink(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          const l = snapshot.previousData;
+          await this.academic.updateProjectLink(snapshot.id, {
+            label: l.label,
+            url: l.url,
+          });
+        }
         break;
       }
       case 'SHOPPING_ITEM': {
@@ -606,19 +794,25 @@ export class ChatToolDispatcher {
         }
         break;
       }
+      case 'SHOPPING_IN_TRANSIT_ITEM': {
+        if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.shopping.updateInTransitItem(snapshot.id, snapshot.previousData);
+        }
+        break;
+      }
+      case 'SHOPPING_PURCHASED_CREATE': {
+        // Delete synced Finanças records BEFORE deleting the shopping item,
+        // because ON DELETE SET NULL clears `shopping_item_id` when the item is removed.
+        if (!snapshot.alreadyLoggedInFinances) {
+          await this.deleteFinancesByShoppingItemId(snapshot.id);
+        }
+        await this.shopping.deleteItem(snapshot.id);
+        break;
+      }
       case 'SHOPPING_PURCHASED': {
         await this.shopping.revertToWishlist(snapshot.id);
         if (!snapshot.alreadyLoggedInFinances) {
-          // Remove auto-generated finance transactions or installment plans
-          const tx = (await this.finances.listTransactions()).find(
-            (t) => t.shoppingItemId === snapshot.id,
-          );
-          if (tx) await this.finances.deleteTransaction(tx.id);
-
-          const plan = (await this.finances.listInstallmentPlans()).find(
-            (p) => p.shoppingItemId === snapshot.id,
-          );
-          if (plan) await this.finances.deleteInstallmentPlan(plan.id);
+          await this.deleteFinancesByShoppingItemId(snapshot.id);
         }
         break;
       }
@@ -627,7 +821,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'SHOPPING_REVERT_DELIVERED': {
-        await this.shopping.markDelivered(snapshot.id);
+        await this.shopping.markDelivered(snapshot.id, snapshot.previousDeliveredAt ?? undefined);
         break;
       }
       case 'SHOPPING_REVERT_WISHLIST': {

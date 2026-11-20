@@ -6,8 +6,10 @@ import {
   AcademicService,
   type CreateMilestoneInput,
   type CreateProjectInput,
+  type CreateProjectLinkInput,
   type UpdateMilestoneInput,
   type UpdateProjectInput,
+  type UpdateProjectLinkInput,
 } from './service';
 
 export interface ActionResult<T = unknown> {
@@ -83,4 +85,22 @@ export async function toggleMilestoneAction(id: string) {
 export async function deleteMilestoneAction(id: string) {
   await requireSessionAuth();
   return run((s) => s.deleteMilestone(id), 'ERRO AO EXCLUIR MARCO');
+}
+
+export async function addProjectLinkAction(
+  projectId: string,
+  input: Omit<CreateProjectLinkInput, 'projectId'>,
+) {
+  await requireSessionAuth();
+  return run((s) => s.addProjectLink(projectId, input), 'ERRO AO ADICIONAR LINK');
+}
+
+export async function updateProjectLinkAction(id: string, input: UpdateProjectLinkInput) {
+  await requireSessionAuth();
+  return run((s) => s.updateProjectLink(id, input), 'ERRO AO ATUALIZAR LINK');
+}
+
+export async function deleteProjectLinkAction(id: string) {
+  await requireSessionAuth();
+  return run((s) => s.deleteProjectLink(id), 'ERRO AO EXCLUIR LINK');
 }
