@@ -7,11 +7,12 @@ import { AcademicService } from '@/features/academic/service';
 import { ShoppingService } from '@/features/shopping/service';
 import { ChatService } from '@/features/chat/service';
 import { formatCentsToBRL } from '@/lib/currency';
-import { HEX_TO_COLOR, TOOL_DEFINITIONS } from './definitions';
+import { ACTION_CATALOG, computeDefaultEndTime, HEX_TO_COLOR } from './catalog';
 
 export interface ToolExecutionContext {
   threadId: string;
   db?: AppDatabase;
+  currentDateRecife?: string;
 }
 
 export interface ToolExecutionResult {
@@ -44,12 +45,19 @@ export class ChatToolDispatcher {
     rawArgs: unknown,
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
-    const definition = TOOL_DEFINITIONS[toolName];
+    const definition = ACTION_CATALOG[toolName];
     if (!definition) {
       throw new Error(`TOOL DESCONHECIDA: ${toolName}`);
     }
 
-    const validatedArgs = definition.schema.parse(rawArgs);
+    const preparedArgs =
+      definition.applyDefaults && rawArgs && typeof rawArgs === 'object'
+        ? definition.applyDefaults(rawArgs as Record<string, unknown>, {
+            currentDateRecife: context.currentDateRecife,
+          })
+        : rawArgs;
+
+    const validatedArgs = definition.schema.parse(preparedArgs);
 
     // ============================================================
     // DESTRUCTIVE ACTIONS: GUARDRAIL OBRIGATÓRIO (NÃO EXECUTA DIRETO)
@@ -206,12 +214,27 @@ export class ChatToolDispatcher {
       case 'updateCalendarEvent': {
         const before = await this.calendar.getEvent(args.id);
         const colorKey = args.color ?? (before.color in HEX_TO_COLOR ? HEX_TO_COLOR[before.color] : before.color);
+        const allDay = args.allDay !== undefined ? args.allDay : Boolean(before.allDay);
+        const nextStartTime = args.startTime ?? (before.allDay ? undefined : before.startAt.slice(11, 16));
+        let nextEndTime = args.endTime ?? (before.allDay ? undefined : before.endAt.slice(11, 16));
+
+        if (!allDay && nextStartTime && args.endTime === undefined && (!nextEndTime || nextEndTime <= nextStartTime)) {
+          let durationMinutes = 60;
+          if (!before.allDay) {
+            const [sh, sm] = before.startAt.slice(11, 16).split(':').map(Number);
+            const [eh, em] = before.endAt.slice(11, 16).split(':').map(Number);
+            const diff = eh * 60 + em - (sh * 60 + sm);
+            if (diff > 0) durationMinutes = diff;
+          }
+          nextEndTime = computeDefaultEndTime(nextStartTime, durationMinutes);
+        }
+
         const merged = {
           title: args.title ?? before.title,
           date: args.date ?? before.startAt.slice(0, 10),
-          startTime: args.startTime ?? (before.allDay ? undefined : before.startAt.slice(11, 16)),
-          endTime: args.endTime ?? (before.allDay ? undefined : before.endAt.slice(11, 16)),
-          allDay: args.allDay !== undefined ? args.allDay : Boolean(before.allDay),
+          startTime: allDay ? undefined : nextStartTime,
+          endTime: allDay ? undefined : nextEndTime,
+          allDay,
           color: colorKey,
           description: args.description !== undefined ? args.description : (before.description ?? undefined),
           recurrence: args.recurrence ?? (before.recurrenceRule as any),
