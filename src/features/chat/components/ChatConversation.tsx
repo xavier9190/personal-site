@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -37,12 +37,50 @@ export interface ChatConversationProps {
   initialMessages: ChatMessageRecord[];
 }
 
-interface ToolCallCardData {
+export interface ToolCallCardData {
   actionId?: string;
   toolName: string;
   description: string;
   isDestructive: boolean;
   status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE' | 'READ_SUCCESS';
+}
+
+export function extractToolCallsFromSsePayload(data: {
+  toolCalls?: ToolCallCardData[] | null;
+  toolCall?: ToolCallCardData | null;
+}): ToolCallCardData[] {
+  if (Array.isArray(data.toolCalls)) {
+    return data.toolCalls;
+  }
+  if (data.toolCall) {
+    return [data.toolCall];
+  }
+  return [];
+}
+
+export function StreamingToolCallsPreview({
+  toolCalls,
+}: {
+  toolCalls: ToolCallCardData[];
+}) {
+  if (toolCalls.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {toolCalls.map((tc, idx) => (
+        <div
+          key={tc.actionId || idx}
+          className={`rounded border border-dashed bg-[#121212] p-2 text-xs ${
+            tc.isDestructive
+              ? 'border-[#ffc9c9] text-[#ffc9c9]'
+              : 'border-[#ffec99] text-[#ffec99]'
+          }`}
+        >
+          {tc.isDestructive ? 'AGUARDANDO CONFIRMAÇÃO:' : 'PROCESSANDO:'} {tc.description}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function ChatConversation({
@@ -283,15 +321,17 @@ export function ChatConversation({
             const data = JSON.parse(jsonStr);
             if (data.type === 'start') {
               if (data.threadId) setThreadId(data.threadId);
-              if (data.toolCall) {
-                collectedToolCalls = [data.toolCall];
-                setStreamingToolCalls(collectedToolCalls);
+              const incomingToolCalls = extractToolCallsFromSsePayload(data);
+              if (incomingToolCalls.length > 0) {
+                collectedToolCalls = incomingToolCalls;
+                setStreamingToolCalls(incomingToolCalls);
               }
             } else if (data.type === 'token') {
               accumulated += data.token;
               setStreamingText(accumulated);
             } else if (data.type === 'done') {
-              const toolCalls = data.toolCalls || collectedToolCalls;
+              const incomingDoneTools = extractToolCallsFromSsePayload(data);
+              const toolCalls = incomingDoneTools.length > 0 ? incomingDoneTools : collectedToolCalls;
               if (data.assistantMessage) {
                 setMessages((prev) => [...prev, data.assistantMessage]);
               } else {
@@ -358,31 +398,46 @@ export function ChatConversation({
   // -------------------------------------------------------------
   // Tool Action Card Handlers (Undo & Confirm/Cancel)
   // -------------------------------------------------------------
-  const handleUndo = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'UNDONE' }));
-    const res = await undoActionAction(actionId);
-    if (!res.ok) {
-      alert(`FALHA AO DESFAZER: ${res.error || 'ERRO DESCONHECIDO'}`);
+  const runActionStatusTransition = async (
+    actionId: string,
+    optimisticStatus: ToolCallCardData['status'],
+    execute: () => Promise<{ ok: boolean; error?: string }>,
+    failureLabel?: string,
+  ) => {
+    setActionStatuses((prev) => ({ ...prev, [actionId]: optimisticStatus }));
+    const res = await execute();
+    if (!res.ok && failureLabel) {
+      setActionStatuses((prev) => {
+        const next = { ...prev };
+        delete next[actionId];
+        return next;
+      });
+      alert(`${failureLabel}: ${res.error || 'ERRO DESCONHECIDO'}`);
     } else {
       router.refresh();
     }
   };
 
-  const handleConfirmDelete = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'CONFIRMED' }));
-    const res = await confirmPendingActionAction(actionId);
-    if (!res.ok) {
-      alert(`FALHA AO EXCLUIR: ${res.error || 'ERRO DESCONHECIDO'}`);
-    } else {
-      router.refresh();
-    }
-  };
+  const handleUndo = (actionId: string) =>
+    runActionStatusTransition(
+      actionId,
+      'UNDONE',
+      () => undoActionAction(actionId),
+      'FALHA AO DESFAZER',
+    );
 
-  const handleCancelDelete = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'CANCELLED' }));
-    await cancelPendingActionAction(actionId);
-    router.refresh();
-  };
+  const handleConfirmDelete = (actionId: string) =>
+    runActionStatusTransition(
+      actionId,
+      'CONFIRMED',
+      () => confirmPendingActionAction(actionId),
+      'FALHA AO EXCLUIR',
+    );
+
+  const handleCancelDelete = (actionId: string) =>
+    runActionStatusTransition(actionId, 'CANCELLED', () =>
+      cancelPendingActionAction(actionId),
+    );
 
   const handleNewConversation = async () => {
     const res = await createNewThreadAction();
@@ -615,6 +670,25 @@ export function ChatConversation({
                           );
                         }
 
+                        // Read / Query Card
+                        if (effectiveStatus === 'READ_SUCCESS') {
+                          return (
+                            <div
+                              key={tc.actionId || idx}
+                              className="flex items-center justify-between rounded-lg border-2 border-[#a5d8ff] bg-[#121212] p-2.5 text-xs text-[#f1f3f5] sketch-shadow-sm"
+                            >
+                              <div className="flex flex-col pr-2">
+                                <span className="font-bold text-[#a5d8ff]">
+                                  {tc.description}
+                                </span>
+                                <span className="text-[10px] text-[#868e96]">
+                                  CONSULTA CONCLUÍDA
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         // Mutation Card (Executed Immediately with [DESFAZER])
                         return (
                           <div
@@ -682,11 +756,7 @@ export function ChatConversation({
               )}
 
               {/* Streaming Tool Call Preview */}
-              {streamingToolCalls.length > 0 && (
-                <div className="mt-2 rounded border border-dashed border-[#ffec99] bg-[#121212] p-2 text-xs text-[#ffec99]">
-                  PROCESSANDO: {streamingToolCalls[0].description}
-                </div>
-              )}
+              <StreamingToolCallsPreview toolCalls={streamingToolCalls} />
             </div>
           </div>
         )}
