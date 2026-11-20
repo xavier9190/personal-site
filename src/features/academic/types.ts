@@ -24,6 +24,17 @@ export const projectLinkInputSchema = z.object({
   url: z.string().trim().url('URL INVÁLIDA'),
 });
 
+export const createProjectLinkSchema = z.object({
+  projectId: z.string().min(1, 'ID DO PROJETO OBRIGATÓRIO'),
+  label: z.string().trim().min(1, 'RÓTULO DO LINK OBRIGATÓRIO'),
+  url: z.string().trim().url('URL INVÁLIDA'),
+});
+
+export const updateProjectLinkSchema = z.object({
+  label: z.string().trim().min(1, 'RÓTULO DO LINK OBRIGATÓRIO').optional(),
+  url: z.string().trim().url('URL INVÁLIDA').optional(),
+});
+
 export const createProjectSchema = z.object({
   title: z.string().trim().min(1, 'TÍTULO DO PROJETO OBRIGATÓRIO'),
   description: z.string().trim().min(1, 'DESCRIÇÃO DO PROJETO OBRIGATÓRIA'),
@@ -54,6 +65,8 @@ export const updateMilestoneSchema = z.object({
 });
 
 export type ProjectLinkInput = z.input<typeof projectLinkInputSchema>;
+export type CreateProjectLinkInput = z.input<typeof createProjectLinkSchema>;
+export type UpdateProjectLinkInput = z.input<typeof updateProjectLinkSchema>;
 export type CreateProjectInput = z.input<typeof createProjectSchema>;
 export type UpdateProjectInput = z.input<typeof updateProjectSchema>;
 export type CreateMilestoneInput = z.input<typeof createMilestoneSchema>;

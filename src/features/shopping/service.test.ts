@@ -268,4 +268,57 @@ describe('ShoppingService seam (Wishlist, Comprei ✓ → Finanças, A Caminho, 
       await close();
     }
   });
+
+  it('updates in-transit items partially or fully and enforces canonical URL and pure-date validation', async () => {
+    const { shopping, close } = await setup();
+    try {
+      const item = await shopping.addPurchasedItem({
+        name: 'SSD NVMe 1TB',
+        priceCents: 42000,
+        productUrl: 'https://loja.com/ssd',
+        storeApp: 'Mercado Livre',
+        purchasedAt: '2026-11-10',
+        estimatedDeliveryDate: '2026-11-20',
+        alreadyLoggedInFinances: true,
+      });
+
+      // Partial update preserves unchanged fields
+      const partialUpdated = await shopping.updateInTransitItem(item.id, {
+        storeApp: 'Amazon',
+        estimatedDeliveryDate: '2026-11-25',
+      });
+      expect(partialUpdated).toMatchObject({
+        name: 'SSD NVME 1TB',
+        priceCents: 42000,
+        productUrl: 'https://loja.com/ssd',
+        storeApp: 'AMAZON',
+        estimatedDeliveryDate: '2026-11-25',
+      });
+
+      // Clearing optional URL with empty string normalizes to null
+      const clearedUrl = await shopping.updateInTransitItem(item.id, {
+        productUrl: '',
+      });
+      expect(clearedUrl.productUrl).toBeNull();
+
+      // Invalid URL, nonexistent calendar date, and invalid deliveredAt are rejected
+      await expect(
+        shopping.addWishlistItem({
+          name: 'Cabo HDMI',
+          priceCents: 5000,
+          productUrl: 'url-invalida',
+        }),
+      ).rejects.toThrow();
+
+      await expect(
+        shopping.updateInTransitItem(item.id, {
+          estimatedDeliveryDate: '2026-02-30',
+        }),
+      ).rejects.toThrow();
+
+      await expect(shopping.markDelivered(item.id, '2026-02-30')).rejects.toThrow();
+    } finally {
+      await close();
+    }
+  });
 });

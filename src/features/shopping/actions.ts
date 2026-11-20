@@ -8,6 +8,7 @@ import {
   type AddWishlistItemInput,
   type MarkPurchasedInput,
   type UpdateInTransitInput,
+  type UpdateWishlistItemInput,
 } from './service';
 
 export interface ActionResult<T = unknown> {
@@ -37,7 +38,7 @@ export async function addWishlistItemAction(input: AddWishlistItemInput) {
   return run((s) => s.addWishlistItem(input), 'ERRO AO ADICIONAR ITEM');
 }
 
-export async function updateWishlistItemAction(id: string, input: AddWishlistItemInput) {
+export async function updateWishlistItemAction(id: string, input: UpdateWishlistItemInput) {
   await requireSessionAuth();
   return run((s) => s.updateWishlistItem(id, input), 'ERRO AO EDITAR ITEM');
 }

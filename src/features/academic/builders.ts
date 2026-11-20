@@ -1,17 +1,21 @@
 import crypto from 'node:crypto';
 import {
   createMilestoneSchema,
+  createProjectLinkSchema,
   createProjectSchema,
   updateMilestoneSchema,
+  updateProjectLinkSchema,
   updateProjectSchema,
   type AcademicProjectRecord,
   type AcademicProjectView,
   type CreateMilestoneInput,
   type CreateProjectInput,
+  type CreateProjectLinkInput,
   type ProjectLinkRecord,
   type ProjectMilestoneRecord,
   type UpdateMilestoneInput,
   type UpdateProjectInput,
+  type UpdateProjectLinkInput,
 } from './types';
 
 export function buildNewProjectRecord(input: CreateProjectInput): {
@@ -108,6 +112,31 @@ export function buildUpdatedMilestoneRecord(
     dueDate: parsed.dueDate !== undefined ? parsed.dueDate : existing.dueDate,
     isCompleted: parsed.isCompleted !== undefined ? parsed.isCompleted : existing.isCompleted,
     sortOrder: parsed.sortOrder !== undefined ? parsed.sortOrder : existing.sortOrder,
+  };
+}
+
+export function buildNewProjectLinkRecord(
+  projectId: string,
+  input: Omit<CreateProjectLinkInput, 'projectId'>,
+): ProjectLinkRecord {
+  const parsed = createProjectLinkSchema.parse({ ...input, projectId });
+  return {
+    id: crypto.randomUUID(),
+    projectId,
+    label: parsed.label.toUpperCase(),
+    url: parsed.url,
+  };
+}
+
+export function buildUpdatedProjectLinkRecord(
+  existing: ProjectLinkRecord,
+  input: UpdateProjectLinkInput,
+): ProjectLinkRecord {
+  const parsed = updateProjectLinkSchema.parse(input);
+  return {
+    ...existing,
+    label: parsed.label !== undefined ? parsed.label.toUpperCase() : existing.label,
+    url: parsed.url !== undefined ? parsed.url : existing.url,
   };
 }
 
