@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
                 userMessage: prepared.userMessage,
                 toolCall: prepared.toolCalls[0] ?? null,
                 toolCalls: prepared.toolCalls,
+                resolvedActionStatuses: prepared.resolvedActionStatuses,
               })}\n\n`,
             ),
           );
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
                 type: 'done',
                 assistantMessage: assistantMsg,
                 toolCalls: prepared.toolCalls,
+                resolvedActionStatuses: prepared.resolvedActionStatuses,
               })}\n\n`,
             ),
           );

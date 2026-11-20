@@ -8,11 +8,23 @@ import { formatToolExecutionSummary, getAIProvider } from './ai/provider';
 import type {
   AIMessageInput,
   AIProvider,
+  AIToolCallRequest,
   AIToolResultInput,
 } from './ai/types';
-import { ChatService, type ChatMessageRecord } from './service';
+import type { PendingActionStatus } from './schema';
+import { ChatService, type ChatMessageRecord, type PendingToolActionRecord } from './service';
 import { getActionCatalogEntry, getGeminiFunctionDeclarations } from './tools/catalog';
+import type { ActionCatalogEntry } from './tools/catalog/types';
 import { ChatToolDispatcher, type ToolExecutionResult } from './tools/dispatcher';
+import {
+  buildActiveDraftContext,
+  formatDraftDescription,
+  inspectActionSlots,
+  isExplicitDraftCancellation,
+  mergeDraftArgs,
+  safeParseArgsJson,
+  type DraftSummary,
+} from './tools/slots';
 
 export interface ChatTurnOrchestratorDeps {
   db?: AppDatabase;
@@ -34,7 +46,42 @@ export interface PreparedChatTurn {
   threadId: string;
   userMessage: ChatMessageRecord;
   toolCalls: ToolExecutionResult[];
+  resolvedActionStatuses: Record<string, PendingActionStatus>;
   streamTokens: AsyncIterable<string>;
+}
+
+function buildDraftToolOutputs(
+  actionId: string,
+  entry: ActionCatalogEntry,
+  collectedArgs: Record<string, unknown>,
+  missingFields: string[],
+  missingFieldLabels: string[],
+  draftSummary: DraftSummary,
+): { cardResult: ToolExecutionResult; modelResult: AIToolResultInput } {
+  const description = formatDraftDescription(entry, missingFields);
+  return {
+    cardResult: {
+      toolName: entry.name,
+      status: 'DRAFTING',
+      actionId,
+      description,
+      isDestructive: false,
+      draftArgs: collectedArgs,
+      missingFields,
+      missingFieldLabels,
+      draftSummary,
+    },
+    modelResult: {
+      toolName: entry.name,
+      status: 'DRAFTING',
+      description,
+      missingFieldLabels,
+      data: {
+        collectedArgs,
+        missingFields: missingFieldLabels,
+      },
+    },
+  };
 }
 
 function extractReadableError(err: unknown, toolName?: string): string {
@@ -118,6 +165,20 @@ export class ChatTurnOrchestrator {
       attachmentsJson: JSON.stringify(attachments),
     });
 
+    let activeDraft = await this.chatService.getActiveDraft(thread.id);
+    if (activeDraft && isExplicitDraftCancellation(effectiveMessage)) {
+      const cancelled = await this.chatService.cancelActiveDraft(thread.id);
+      const draftEntry = getActionCatalogEntry(activeDraft.toolName);
+      const cancelReply = `RASCUNHO CANCELADO! (${draftEntry?.displayName ?? activeDraft.toolName}). COMO POSSO AJUDAR AGORA?`;
+      return {
+        threadId: thread.id,
+        userMessage,
+        toolCalls: [],
+        resolvedActionStatuses: cancelled ? { [cancelled.id]: 'CANCELLED' } : {},
+        streamTokens: streamTextByWords(cancelReply),
+      };
+    }
+
     const threadMessages = await this.chatService.listMessages(thread.id);
     const aiMessages: AIMessageInput[] = threadMessages.map((m) => ({
       role: m.role.toLowerCase() as 'user' | 'assistant' | 'system',
@@ -125,10 +186,12 @@ export class ChatTurnOrchestrator {
       attachments: m.id === userMessage.id ? attachments : undefined,
     }));
 
+    const activeDraftContext = buildActiveDraftContext(activeDraft);
     const context = await buildChatContext(
       this.calendarService,
       this.financesService,
       input.referenceDate,
+      activeDraftContext,
     );
 
     const declarations = getGeminiFunctionDeclarations();
@@ -144,40 +207,20 @@ export class ChatTurnOrchestrator {
         threadId: thread.id,
         userMessage,
         toolCalls: [],
+        resolvedActionStatuses: {},
         streamTokens: directText
           ? streamTextByWords(directText)
           : this.aiProvider.generateStream(aiMessages, context),
       };
     }
 
-    const executedToolCalls: ToolExecutionResult[] = [];
-    const toolResultsForModel: AIToolResultInput[] = [];
-
-    for (const tc of firstTurn.toolCalls) {
-      try {
-        const res = await this.dispatcher.execute(tc.name, tc.args, {
-          threadId: thread.id,
-          currentDateRecife: context.currentDateRecife,
-        });
-        executedToolCalls.push(res);
-        toolResultsForModel.push({
-          callId: tc.id,
-          toolName: tc.name,
-          status: res.status,
-          description: res.description,
-          data: res.data,
-        });
-      } catch (err) {
-        const errorMessage = extractReadableError(err, tc.name);
-        toolResultsForModel.push({
-          callId: tc.id,
-          toolName: tc.name,
-          status: 'ERROR',
-          description: `ERRO AO EXECUTAR ${tc.name}: ${errorMessage}`,
-          error: errorMessage,
-        });
-      }
-    }
+    const { executedToolCalls, toolResultsForModel, resolvedActionStatuses } =
+      await this.executeToolCallsWithDrafting(
+        firstTurn.toolCalls,
+        thread.id,
+        context.currentDateRecife,
+        activeDraft,
+      );
 
     const hasReadCall = executedToolCalls.some((r) => r.status === 'READ_SUCCESS');
     const hasErrors = toolResultsForModel.some((r) => r.status === 'ERROR');
@@ -204,7 +247,143 @@ export class ChatTurnOrchestrator {
       threadId: thread.id,
       userMessage,
       toolCalls: executedToolCalls,
+      resolvedActionStatuses,
       streamTokens: streamTextByWords(finalReplyText),
+    };
+  }
+
+  private async executeToolCallsWithDrafting(
+    toolCalls: AIToolCallRequest[],
+    threadId: string,
+    currentDateRecife: string,
+    initialDraft: PendingToolActionRecord | null,
+  ): Promise<{
+    executedToolCalls: ToolExecutionResult[];
+    toolResultsForModel: AIToolResultInput[];
+    resolvedActionStatuses: Record<string, PendingActionStatus>;
+  }> {
+    const executedToolCalls: ToolExecutionResult[] = [];
+    const toolResultsForModel: AIToolResultInput[] = [];
+    const resolvedActionStatuses: Record<string, PendingActionStatus> = {};
+    let activeDraft = initialDraft;
+
+    // Topic switching mid-draft: if no emitted tool matches the active draft, cancel it first
+    if (activeDraft && !toolCalls.some((tc) => tc.name === activeDraft!.toolName)) {
+      const cancelled = await this.chatService.cancelActiveDraft(threadId);
+      if (cancelled) {
+        resolvedActionStatuses[cancelled.id] = 'CANCELLED';
+      }
+      activeDraft = null;
+    }
+
+    for (const tc of toolCalls) {
+      try {
+        const entry = getActionCatalogEntry(tc.name);
+        const isContinuingDraft = Boolean(entry && activeDraft && activeDraft.toolName === tc.name);
+        const isMutatingWithSlots = Boolean(
+          entry && (entry.operation === 'create' || entry.operation === 'update'),
+        );
+
+        let argsToExecute: unknown = tc.args;
+        let draftActionId: string | undefined;
+
+        if (entry && (isContinuingDraft || isMutatingWithSlots)) {
+          const candidateArgs = isContinuingDraft
+            ? mergeDraftArgs(tc.name, safeParseArgsJson(activeDraft!.argsJson), tc.args)
+            : tc.args;
+          const slotCheck = inspectActionSlots(entry, candidateArgs, { currentDateRecife });
+
+          if (slotCheck.status === 'INCOMPLETE') {
+            if (!isContinuingDraft && activeDraft) {
+              const errorMessage = `JÁ EXISTE UM RASCUNHO ATIVO (${activeDraft.toolName}). CONCLUA OU CANCELE O RASCUNHO ATUAL ANTES DE INICIAR OUTRO.`;
+              toolResultsForModel.push({
+                callId: tc.id,
+                toolName: tc.name,
+                status: 'ERROR',
+                description: errorMessage,
+                error: errorMessage,
+              });
+              continue;
+            }
+
+            activeDraft = isContinuingDraft
+              ? await this.chatService.updateDraft(activeDraft!.id, {
+                  argsJson: JSON.stringify(slotCheck.collectedArgs),
+                  missingFieldsJson: JSON.stringify(slotCheck.missingFields),
+                })
+              : await this.chatService.upsertActiveDraft({
+                  threadId,
+                  toolName: tc.name,
+                  argsJson: JSON.stringify(slotCheck.collectedArgs),
+                  missingFieldsJson: JSON.stringify(slotCheck.missingFields),
+                });
+
+            const { cardResult, modelResult } = buildDraftToolOutputs(
+              activeDraft.id,
+              entry,
+              slotCheck.collectedArgs,
+              slotCheck.missingFields,
+              slotCheck.missingFieldLabels,
+              slotCheck.draftSummary,
+            );
+            modelResult.callId = tc.id;
+            executedToolCalls.push(cardResult);
+            toolResultsForModel.push(modelResult);
+            resolvedActionStatuses[activeDraft.id] = 'DRAFTING';
+            continue;
+          }
+
+          if (slotCheck.status === 'INVALID') {
+            const errorMessage = extractReadableError(slotCheck.zodError, tc.name);
+            toolResultsForModel.push({
+              callId: tc.id,
+              toolName: tc.name,
+              status: 'ERROR',
+              description: `ERRO AO EXECUTAR ${tc.name}: ${errorMessage}`,
+              error: errorMessage,
+            });
+            continue;
+          }
+
+          argsToExecute = slotCheck.preparedArgs;
+          if (isContinuingDraft) {
+            draftActionId = activeDraft!.id;
+            activeDraft = null;
+          }
+        }
+
+        const res = await this.dispatcher.execute(tc.name, argsToExecute, {
+          threadId,
+          currentDateRecife,
+          draftActionId,
+        });
+        if (res.actionId && res.status !== 'READ_SUCCESS') {
+          resolvedActionStatuses[res.actionId] = res.status as PendingActionStatus;
+        }
+        executedToolCalls.push(res);
+        toolResultsForModel.push({
+          callId: tc.id,
+          toolName: tc.name,
+          status: res.status,
+          description: res.description,
+          data: res.data,
+        });
+      } catch (err) {
+        const errorMessage = extractReadableError(err, tc.name);
+        toolResultsForModel.push({
+          callId: tc.id,
+          toolName: tc.name,
+          status: 'ERROR',
+          description: `ERRO AO EXECUTAR ${tc.name}: ${errorMessage}`,
+          error: errorMessage,
+        });
+      }
+    }
+
+    return {
+      executedToolCalls,
+      toolResultsForModel,
+      resolvedActionStatuses,
     };
   }
 

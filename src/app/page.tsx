@@ -16,12 +16,15 @@ export default async function ChatPage() {
   const future30DaysDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const futureRecife = toRecifeDateString(future30DaysDate);
 
-  const [{ defaultThread, messages }, upcomingItems, { summary, allBills, hideBalance }] =
+  const [{ defaultThread, messages, actionStatuses }, upcomingItems, { summary, allBills, hideBalance }] =
     await Promise.all([
-      chatService.getOrCreateDefaultThread().then(async (defaultThread) => ({
-        defaultThread,
-        messages: await chatService.listMessages(defaultThread.id),
-      })),
+      chatService.getOrCreateDefaultThread().then(async (defaultThread) => {
+        const [messages, actionStatuses] = await Promise.all([
+          chatService.listMessages(defaultThread.id),
+          chatService.getActionStatusMap(defaultThread.id),
+        ]);
+        return { defaultThread, messages, actionStatuses };
+      }),
       calendarService.listItems(todayRecife, futureRecife),
       financesService.getHomeOverview(todayRecife),
     ]);
@@ -35,6 +38,7 @@ export default async function ChatPage() {
       <ChatConversation
         initialThreadId={defaultThread.id}
         initialMessages={messages}
+        initialActionStatuses={actionStatuses}
       />
 
       {/* Right Panel: Strictly desktop only (lg:flex, hidden on mobile) */}

@@ -1,5 +1,15 @@
 import { pgTable, text } from 'drizzle-orm/pg-core';
 
+export const PENDING_ACTION_STATUSES = [
+  'DRAFTING',
+  'PENDING_CONFIRMATION',
+  'CONFIRMED',
+  'CANCELLED',
+  'UNDONE',
+] as const;
+
+export type PendingActionStatus = (typeof PENDING_ACTION_STATUSES)[number];
+
 export const chatThreads = pgTable('chat_threads', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
@@ -27,7 +37,8 @@ export const pendingToolActions = pgTable('pending_tool_actions', {
   toolName: text('tool_name').notNull(),
   argsJson: text('args_json').notNull(),
   status: text('status', {
-    enum: ['PENDING_CONFIRMATION', 'CONFIRMED', 'CANCELLED', 'UNDONE'],
+    enum: PENDING_ACTION_STATUSES,
   }).notNull(),
+  missingFieldsJson: text('missing_fields_json'),
   undoSnapshotJson: text('undo_snapshot_json'),
 });

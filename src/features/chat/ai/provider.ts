@@ -10,6 +10,8 @@ import {
 } from '@google/genai';
 import type { AppDatabase } from '@/db';
 import { getDb } from '@/db';
+import { parseBRLToCents } from '@/lib/currency';
+import { isExplicitDraftCancellation } from '../tools/slots';
 import { detectToolIntent } from './intent';
 import type {
   AIMessageInput,
@@ -48,6 +50,7 @@ export function getAIProvider(): AIProvider {
 export function formatToolExecutionSummary(results: AIToolResultInput[]): string {
   const confirmed = results.filter((r) => r.status === 'CONFIRMED');
   const pending = results.filter((r) => r.status === 'PENDING_CONFIRMATION');
+  const drafting = results.filter((r) => r.status === 'DRAFTING');
   const reads = results.filter((r) => r.status === 'READ_SUCCESS');
   const errors = results.filter((r) => r.status === 'ERROR');
 
@@ -55,6 +58,7 @@ export function formatToolExecutionSummary(results: AIToolResultInput[]): string
     results.length === 1 &&
     confirmed.length === 1 &&
     pending.length === 0 &&
+    drafting.length === 0 &&
     reads.length === 0 &&
     errors.length === 0
   ) {
@@ -63,8 +67,21 @@ export function formatToolExecutionSummary(results: AIToolResultInput[]): string
 
   if (
     results.length === 1 &&
+    drafting.length === 1 &&
+    confirmed.length === 0 &&
+    pending.length === 0 &&
+    reads.length === 0 &&
+    errors.length === 0
+  ) {
+    const missingList = drafting[0].missingFieldLabels?.join(', ') || 'CAMPOS OBRIGATÓRIOS';
+    return `RASCUNHO EM ANDAMENTO (${drafting[0].description}).\nPARA CONCLUIR, INFORME APENAS: ${missingList}.`;
+  }
+
+  if (
+    results.length === 1 &&
     pending.length === 1 &&
     confirmed.length === 0 &&
+    drafting.length === 0 &&
     reads.length === 0 &&
     errors.length === 0
   ) {
@@ -76,6 +93,7 @@ export function formatToolExecutionSummary(results: AIToolResultInput[]): string
     reads.length === 1 &&
     confirmed.length === 0 &&
     pending.length === 0 &&
+    drafting.length === 0 &&
     errors.length === 0
   ) {
     return `CONSULTA CONCLUÍDA:\n${reads[0].description}`;
@@ -88,6 +106,13 @@ export function formatToolExecutionSummary(results: AIToolResultInput[]): string
       lines.push(`• ${item.description}`);
     }
     lines.push('VOCÊ PODE DESFAZER NO BOTÃO [DESFAZER] DOS CARDS ABAIXO.');
+  }
+  if (drafting.length > 0) {
+    for (const item of drafting) {
+      const missingList = item.missingFieldLabels?.join(', ') || 'CAMPOS OBRIGATÓRIOS';
+      lines.push(`RASCUNHO EM ANDAMENTO: ${item.description}.`);
+      lines.push(`PARA CONCLUIR, INFORME APENAS: ${missingList}.`);
+    }
   }
   if (pending.length > 0) {
     lines.push('AÇÕES QUE EXIGEM CONFIRMAÇÃO:');
@@ -126,9 +151,20 @@ Regras de estilo e comportamento:
     return base;
   }
 
+  const draftInstruction = context.activeDraft
+    ? `\n7. Rascunho ativo em andamento (${context.activeDraft.toolName} - ${context.activeDraft.displayName}):
+- Campos já coletados: ${JSON.stringify(context.activeDraft.collectedArgs)}
+- Campos obrigatórios faltando: ${context.activeDraft.missingFields
+        .map((f) => `${f.name} (${f.label})`)
+        .join(', ')}
+- Se o usuário responder fornecendo os dados que faltam (mesmo em resposta curta), invoque "${context.activeDraft.toolName}" com os novos campos (e/ou os já coletados).
+- Se o usuário mudar de assunto para outra ação, invoque a nova ferramenta normalmente (o rascunho anterior será cancelado).
+- Se o usuário pedir para cancelar/esquecer o rascunho, não invoque ferramentas de mutação.`
+    : '';
+
   return `${base}
 5. Ao identificar uma ou mais solicitações de criação, edição, consulta ou exclusão, invoque as funções declaradas correspondentes (pode emitir múltiplas chamadas na mesma resposta).
-6. Nunca invente valores fictícios para campos obrigatórios ausentes (como título de evento ou ID de registro). Campos deriváveis como data atual de Recife, cor padrão ou horário de término (+1h) podem ser omitidos quando não informados.`;
+6. Nunca invente valores fictícios para campos obrigatórios ausentes (como título de evento ou ID de registro). Campos deriváveis como data atual de Recife, cor padrão ou horário de término (+1h) podem ser omitidos quando não informados.${draftInstruction}`;
 }
 
 function toGeminiParts(message: AIMessageInput): Part[] {
@@ -290,6 +326,49 @@ export class AntigravityAIProvider implements AIProvider {
         ],
         source: 'fallback',
       };
+    }
+
+    const activeDraft = input.context.activeDraft;
+    const normalized = userPrompt.trim().toLowerCase();
+    const isConversationalQuery =
+      !normalized ||
+      normalized.includes('?') ||
+      isExplicitDraftCancellation(userPrompt) ||
+      ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'saldo', 'agenda', 'ajuda', 'comandos'].some(
+        (kw) => normalized === kw || normalized.startsWith(`${kw} `),
+      );
+
+    if (activeDraft && activeDraft.missingFields.length === 1 && !isConversationalQuery) {
+      const missingField = activeDraft.missingFields[0];
+      if (
+        ['title', 'description', 'name', 'category', 'storeApp'].includes(missingField.name)
+      ) {
+        return {
+          text: '',
+          toolCalls: [
+            {
+              name: activeDraft.toolName,
+              args: { [missingField.name]: userPrompt.trim().toUpperCase() },
+            },
+          ],
+          source: 'fallback',
+        };
+      }
+      if (missingField.name.endsWith('Cents')) {
+        const cents = parseBRLToCents(userPrompt);
+        if (cents > 0) {
+          return {
+            text: '',
+            toolCalls: [
+              {
+                name: activeDraft.toolName,
+                args: { [missingField.name]: cents },
+              },
+            ],
+            source: 'fallback',
+          };
+        }
+      }
     }
 
     return {
