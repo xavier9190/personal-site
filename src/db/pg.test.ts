@@ -230,12 +230,13 @@ describe('PostgreSQL database seam (PGlite in-memory + Drizzle pg-core + RLS)', 
     }
   });
 
-  it('configures PostgreSQL client with prepare: false for Supabase Supavisor and guards missing DATABASE_URL', async () => {
+  it('configures PostgreSQL pool safely for Supabase Supavisor and guards missing DATABASE_URL', async () => {
     expect(() => createPgClient('')).toThrow(/DATABASE_URL/i);
 
     const client = createPgClient('postgres://postgres:postgres@127.0.0.1:5432/postgres');
     try {
-      expect(client.sql.options.prepare).toBe(false);
+      expect(client.pool.options.max).toBe(5);
+      expect(client.pool.options.connectionTimeoutMillis).toBe(15_000);
       expect(client.db).toBeDefined();
     } finally {
       await client.close();

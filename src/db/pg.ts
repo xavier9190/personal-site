@@ -1,9 +1,9 @@
 import path from 'node:path';
-import postgres, { type Sql } from 'postgres';
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { Pool, type PoolConfig } from 'pg';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as pgSchema from './schema';
 
-export type PgDatabase = PostgresJsDatabase<typeof pgSchema>;
+export type PgDatabase = NodePgDatabase<typeof pgSchema>;
 
 export const PG_MIGRATIONS_FOLDER = path.join(process.cwd(), 'src', 'db', 'migrations-pg');
 
@@ -11,32 +11,42 @@ export interface PgClientOptions {
   max?: number;
 }
 
+function shouldRequireSsl(connectionString: string): boolean {
+  return (
+    connectionString.includes('supabase.com') ||
+    connectionString.includes('sslmode=require')
+  );
+}
+
 export function createPgClient(
   connectionString: string = process.env.DATABASE_URL ?? '',
   options?: PgClientOptions,
 ): {
   db: PgDatabase;
-  sql: Sql;
+  pool: Pool;
   close: () => Promise<void>;
 } {
-  if (!connectionString.trim()) {
+  const normalizedUrl = connectionString.trim();
+  if (!normalizedUrl) {
     throw new Error('DATABASE_URL environment variable is required to connect to PostgreSQL.');
   }
 
-  const sql = postgres(connectionString, {
-    prepare: false,
-    idle_timeout: 20,
-    connect_timeout: 15,
+  const poolConfig: PoolConfig = {
+    connectionString: normalizedUrl,
     max: options?.max ?? 5,
-  });
+    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 15_000,
+    ...(shouldRequireSsl(normalizedUrl) ? { ssl: { rejectUnauthorized: false } } : {}),
+  };
 
-  const db = drizzle(sql, { schema: pgSchema });
+  const pool = new Pool(poolConfig);
+  const db = drizzle(pool, { schema: pgSchema });
 
   return {
     db,
-    sql,
+    pool,
     close: async () => {
-      await sql.end();
+      await pool.end();
     },
   };
 }
