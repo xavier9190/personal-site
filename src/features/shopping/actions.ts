@@ -25,6 +25,7 @@ async function run<T>(
     revalidatePath('/compras');
     revalidatePath('/financas');
     revalidatePath('/calendario');
+    revalidatePath('/');
     return { ok: true, data };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : fallback };

@@ -195,24 +195,26 @@ export class FinancesService {
       .map((p) => buildInstallmentView(p, cards));
   }
 
-  private async syncCreditCardBillsForMonth(competenceMonth: string): Promise<void> {
-    const [cards, allPlans, existingBills] = await Promise.all([
-      this.listCreditCards(),
-      this.listInstallmentPlans(),
-      this.repo.getAllPayableBills(),
-    ]);
+  private async syncCreditCardBillsForMonth(
+    competenceMonth: string,
+    cards: CreditCardRecord[],
+    allPlans: InstallmentPlanRecord[],
+    existingBills: PayableBillRecord[],
+  ): Promise<PayableBillRecord[]> {
+    const bills = [...existingBills];
 
     for (const card of cards) {
       const cardTotal = computeCardInstallmentsTotal(card.id, allPlans, competenceMonth);
-      const existing = existingBills.find(
+      const existingIdx = bills.findIndex(
         (b) =>
           b.billType === 'CREDIT_CARD_BILL' &&
           b.creditCardId === card.id &&
           b.competenceMonth === competenceMonth,
       );
+      const existing = existingIdx >= 0 ? bills[existingIdx] : undefined;
 
       if (cardTotal > 0 && !existing) {
-        await this.createPayableBill({
+        const created = await this.createPayableBill({
           title: `FATURA ${card.name}`,
           billType: 'CREDIT_CARD_BILL',
           amountCents: cardTotal,
@@ -221,19 +223,27 @@ export class FinancesService {
           competenceMonth,
           creditCardId: card.id,
         });
+        bills.push(created);
       } else if (existing && existing.status === 'PENDING') {
-        if (cardTotal === 0) await this.deletePayableBill(existing.id);
-        else if (existing.amountCents !== cardTotal) {
-          await this.updatePayableBill(existing.id, { amountCents: cardTotal });
+        if (cardTotal === 0) {
+          await this.deletePayableBill(existing.id);
+          bills.splice(existingIdx, 1);
+        } else if (existing.amountCents !== cardTotal) {
+          const updated = await this.updatePayableBill(existing.id, { amountCents: cardTotal });
+          bills[existingIdx] = updated;
         }
       }
     }
+
+    return bills;
   }
 
-  private async syncFixedBillsForMonth(competenceMonth: string): Promise<void> {
-    const fixed = (await this.repo.getAllPayableBills()).filter(
-      (b) => b.billType === 'FIXED_RECURRING',
-    );
+  private async syncFixedBillsForMonth(
+    competenceMonth: string,
+    existingBills: PayableBillRecord[],
+  ): Promise<PayableBillRecord[]> {
+    const bills = [...existingBills];
+    const fixed = bills.filter((b) => b.billType === 'FIXED_RECURRING');
     const latestByTitle = new Map<string, PayableBillRecord>();
     for (const bill of fixed) {
       const prev = latestByTitle.get(bill.title);
@@ -248,7 +258,7 @@ export class FinancesService {
       );
       const hasEarlier = latest.competenceMonth < competenceMonth || startedBefore;
       if (existsInMonth || !hasEarlier) continue;
-      await this.createPayableBill({
+      const created = await this.createPayableBill({
         title,
         billType: 'FIXED_RECURRING',
         amountCents: latest.amountCents,
@@ -256,7 +266,24 @@ export class FinancesService {
         dueDate: buildCardDueDate(competenceMonth, Number(latest.dueDate.slice(8, 10))),
         competenceMonth,
       });
+      bills.push(created);
     }
+    return bills;
+  }
+
+  private async syncBillsForMonth(
+    competenceMonth: string,
+    cards: CreditCardRecord[],
+    allPlans: InstallmentPlanRecord[],
+    existingBills: PayableBillRecord[],
+  ): Promise<PayableBillRecord[]> {
+    const afterCardSync = await this.syncCreditCardBillsForMonth(
+      competenceMonth,
+      cards,
+      allPlans,
+      existingBills,
+    );
+    return this.syncFixedBillsForMonth(competenceMonth, afterCardSync);
   }
 
   async listPayableBills(params?: {
@@ -265,9 +292,13 @@ export class FinancesService {
   }): Promise<PayableBillRecord[]> {
     const prefix = getYearMonthPrefix(params?.period ?? 'ALL', params?.referenceDate);
     const month = prefix ?? toRecifeDateString().slice(0, 7);
-    await this.syncCreditCardBillsForMonth(month);
-    await this.syncFixedBillsForMonth(month);
-    return filterBillsByPrefix(await this.repo.getAllPayableBills(), prefix);
+    const [cards, allPlans, existingBills] = await Promise.all([
+      this.listCreditCards(),
+      this.listInstallmentPlans(),
+      this.repo.getAllPayableBills(),
+    ]);
+    const syncedBills = await this.syncBillsForMonth(month, cards, allPlans, existingBills);
+    return filterBillsByPrefix(syncedBills, prefix);
   }
 
   async getBalanceSummary(params?: {
@@ -275,14 +306,22 @@ export class FinancesService {
     referenceDate?: string;
   }): Promise<BalanceSummary> {
     const period = params?.period ?? 'THIS_MONTH';
-    const [periodTxs, allBills, installmentPlans] = await Promise.all([
-      this.listTransactions({ period, referenceDate: params?.referenceDate }),
-      this.listPayableBills({ period, referenceDate: params?.referenceDate }),
+    const prefix = getYearMonthPrefix(period, params?.referenceDate);
+    const month = prefix ?? toRecifeDateString().slice(0, 7);
+    const [allTxs, cards, allPlans, existingBills] = await Promise.all([
+      this.repo.getAllTransactions(),
+      this.listCreditCards(),
       this.listInstallmentPlans(),
+      this.repo.getAllPayableBills(),
     ]);
-    const pendingBills = allBills.filter((b) => b.status === 'PENDING');
-    const month = getYearMonthPrefix(period, params?.referenceDate);
-    return computeBalanceSummary(periodTxs, pendingBills, installmentPlans, month);
+    const syncedBills = await this.syncBillsForMonth(month, cards, allPlans, existingBills);
+    const periodTxs = filterTransactionsList(allTxs, {
+      period,
+      referenceDate: params?.referenceDate,
+    });
+    const periodBills = filterBillsByPrefix(syncedBills, prefix);
+    const pendingBills = periodBills.filter((b) => b.status === 'PENDING');
+    return computeBalanceSummary(periodTxs, pendingBills, allPlans, prefix);
   }
 
   async getHideBalance(): Promise<boolean> {
@@ -293,26 +332,63 @@ export class FinancesService {
     return this.repo.toggleHideBalance();
   }
 
+  async getHomeOverview(referenceDate?: string): Promise<{
+    summary: BalanceSummary;
+    allBills: PayableBillRecord[];
+    hideBalance: boolean;
+  }> {
+    const thisMonthPrefix = getYearMonthPrefix('THIS_MONTH', referenceDate);
+    const month = thisMonthPrefix ?? toRecifeDateString().slice(0, 7);
+    const [allTransactions, existingBills, cards, allPlans, hideBalance] = await Promise.all([
+      this.repo.getAllTransactions(),
+      this.repo.getAllPayableBills(),
+      this.listCreditCards(),
+      this.listInstallmentPlans(),
+      this.getHideBalance(),
+    ]);
+    const syncedBills = await this.syncBillsForMonth(month, cards, allPlans, existingBills);
+    const allBills = filterBillsByPrefix(syncedBills, null);
+    const thisMonthBills = filterBillsByPrefix(syncedBills, thisMonthPrefix);
+    const pendingThisMonthBills = thisMonthBills.filter((b) => b.status === 'PENDING');
+    const periodTxs = filterTransactionsList(allTransactions, {
+      period: 'THIS_MONTH',
+      referenceDate,
+    });
+    const summary = computeBalanceSummary(
+      periodTxs,
+      pendingThisMonthBills,
+      allPlans,
+      thisMonthPrefix,
+    );
+    return { summary, allBills, hideBalance };
+  }
+
   async getDashboardView(filters?: TransactionFilters): Promise<FinancesDashboardView> {
     const period = filters?.period ?? 'THIS_MONTH';
-    const [allTransactions, payableBills, creditCards, installmentPlans, hideBalance] =
-      await Promise.all([
-        this.repo.getAllTransactions(),
-        this.listPayableBills({ period, referenceDate: filters?.referenceDate }),
-        this.listCreditCards(),
-        this.listActiveInstallmentViews(),
-        this.getHideBalance(),
-      ]);
+    const prefix = getYearMonthPrefix(period, filters?.referenceDate);
+    const month = prefix ?? toRecifeDateString().slice(0, 7);
+    const [allTransactions, existingBills, creditCards, allPlans, hideBalance] = await Promise.all([
+      this.repo.getAllTransactions(),
+      this.repo.getAllPayableBills(),
+      this.listCreditCards(),
+      this.listInstallmentPlans(),
+      this.getHideBalance(),
+    ]);
+    const syncedBills = await this.syncBillsForMonth(month, creditCards, allPlans, existingBills);
+    const payableBills = filterBillsByPrefix(syncedBills, prefix);
+    const cardsById = new Map(creditCards.map((c) => [c.id, c]));
+    const installmentPlans = allPlans
+      .filter((p) => p.paidInstallments < p.totalInstallments)
+      .map((p) => buildInstallmentView(p, cardsById));
+
     const periodTxs = filterTransactionsList(allTransactions, {
       period,
       referenceDate: filters?.referenceDate,
     });
     const meta = computeDashboardMeta(periodTxs, allTransactions);
     const filteredTransactions = filterTransactionsList(allTransactions, { ...filters, period });
-    const summary = await this.getBalanceSummary({
-      period,
-      referenceDate: filters?.referenceDate,
-    });
+    const pendingBills = payableBills.filter((b) => b.status === 'PENDING');
+    const summary = computeBalanceSummary(periodTxs, pendingBills, allPlans, prefix);
 
     return {
       period,

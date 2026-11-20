@@ -35,6 +35,7 @@ export function AppSidebar() {
             <Link
               key={mod.id}
               href={mod.href}
+              prefetch={true}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'relative flex min-h-[42px] items-center justify-between rounded-md border px-3 py-2 text-sm text-[#f1f3f5] uppercase tracking-wider transition-all',

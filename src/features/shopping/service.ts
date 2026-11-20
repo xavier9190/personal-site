@@ -236,8 +236,10 @@ export class ShoppingService {
     });
   }
 
-  async listInTransitView(today: string = toRecifeDateString()): Promise<InTransitView[]> {
-    const { inTransit } = await this.listItemsBySection();
+  private toInTransitViews(
+    inTransit: ShoppingItemRecord[],
+    today: string,
+  ): InTransitView[] {
     return inTransit.map((item) => {
       const estimated = item.estimatedDeliveryDate!;
       const estimatedDeliveryWindowEnd = addDaysToPureDate(estimated, DELIVERY_WINDOW_DAYS);
@@ -258,6 +260,24 @@ export class ShoppingService {
         progress,
       };
     });
+  }
+
+  async listInTransitView(today: string = toRecifeDateString()): Promise<InTransitView[]> {
+    const { inTransit } = await this.listItemsBySection();
+    return this.toInTransitViews(inTransit, today);
+  }
+
+  async getDashboardView(today: string = toRecifeDateString()): Promise<{
+    wishlist: ShoppingItemRecord[];
+    inTransit: InTransitView[];
+    delivered: ShoppingItemRecord[];
+  }> {
+    const { wishlist, inTransit, delivered } = await this.listItemsBySection();
+    return {
+      wishlist,
+      inTransit: this.toInTransitViews(inTransit, today),
+      delivered,
+    };
   }
 
   async markDelivered(

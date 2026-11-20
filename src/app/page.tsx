@@ -12,18 +12,19 @@ export default async function ChatPage() {
   const calendarService = new CalendarService();
   const financesService = new FinancesService();
 
-  const defaultThread = await chatService.getOrCreateDefaultThread();
   const todayRecife = toRecifeDateString();
   const future30DaysDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const futureRecife = toRecifeDateString(future30DaysDate);
 
-  const [messages, upcomingItems, summary, allBills, hideBalance] = await Promise.all([
-    chatService.listMessages(defaultThread.id),
-    calendarService.listItems(todayRecife, futureRecife),
-    financesService.getBalanceSummary(),
-    financesService.listPayableBills(),
-    financesService.getHideBalance(),
-  ]);
+  const [{ defaultThread, messages }, upcomingItems, { summary, allBills, hideBalance }] =
+    await Promise.all([
+      chatService.getOrCreateDefaultThread().then(async (defaultThread) => ({
+        defaultThread,
+        messages: await chatService.listMessages(defaultThread.id),
+      })),
+      calendarService.listItems(todayRecife, futureRecife),
+      financesService.getHomeOverview(todayRecife),
+    ]);
 
   const pendingBills = allBills.filter((b) => b.status === 'PENDING');
   const paidBills = allBills.filter((b) => b.status === 'PAID');

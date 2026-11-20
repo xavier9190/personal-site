@@ -84,26 +84,39 @@ export class CalendarService {
   }
 
   /** Projeção unificada de [from, to] (YYYY-MM-DD, inclusive): eventos + Acadêmico + Finanças + Compras. */
-  async listItems(from: string, to: string): Promise<CalendarItem[]> {
-    const [events, academic, finance, shopping] = await Promise.all([
-      this.eventItems(from, to),
+  async listItemsAndEvents(
+    from: string,
+    to: string,
+  ): Promise<{ items: CalendarItem[]; events: CalendarEventRecord[] }> {
+    const [rawEvents, academic, finance, shopping] = await Promise.all([
+      this.listEvents(),
       this.academicItems(from, to),
       this.financeItems(from, to),
       this.shoppingItems(from, to),
     ]);
-    const items: CalendarItem[] = [...events, ...academic, ...finance, ...shopping];
-    return items.sort(
+    const events = this.expandEventItems(rawEvents, from, to);
+    const items: CalendarItem[] = [...events, ...academic, ...finance, ...shopping].sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
         Number(b.allDay) - Number(a.allDay) ||
         (a.startTime ?? '').localeCompare(b.startTime ?? '') ||
         a.title.localeCompare(b.title),
     );
+    return { items, events: rawEvents };
   }
 
-  private async eventItems(from: string, to: string): Promise<CalendarItem[]> {
+  /** Projeção unificada de [from, to] (YYYY-MM-DD, inclusive): eventos + Acadêmico + Finanças + Compras. */
+  async listItems(from: string, to: string): Promise<CalendarItem[]> {
+    return (await this.listItemsAndEvents(from, to)).items;
+  }
+
+  private expandEventItems(
+    events: CalendarEventRecord[],
+    from: string,
+    to: string,
+  ): CalendarItem[] {
     const out: CalendarItem[] = [];
-    for (const ev of await this.listEvents()) {
+    for (const ev of events) {
       const start = datePart(ev.startAt);
       for (const date of expandOccurrenceDates(start, ev.recurrenceRule, ev.recurrenceUntil, from, to)) {
         out.push({

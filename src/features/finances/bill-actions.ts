@@ -41,6 +41,7 @@ async function run(
   try {
     await fn(new FinancesService());
     revalidatePath('/financas');
+    revalidatePath('/calendario');
     revalidatePath('/');
     return { ok: true };
   } catch (err) {

@@ -28,6 +28,7 @@ export function MobileBottomNav() {
           <Link
             key={mod.id}
             href={mod.href}
+            prefetch={true}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md border px-1 py-1 text-[9px] leading-tight text-[#f1f3f5] uppercase tracking-wider transition-all',

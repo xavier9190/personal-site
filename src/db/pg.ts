@@ -34,8 +34,9 @@ export function createPgClient(
   const poolConfig: PoolConfig = {
     connectionString: normalizedUrl,
     max: options?.max ?? 5,
-    idleTimeoutMillis: 20_000,
+    idleTimeoutMillis: 60_000,
     connectionTimeoutMillis: 15_000,
+    keepAlive: true,
     ...(shouldRequireSsl(normalizedUrl) ? { ssl: { rejectUnauthorized: false } } : {}),
   };
 

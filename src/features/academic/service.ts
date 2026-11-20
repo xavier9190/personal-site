@@ -13,6 +13,7 @@ import type {
   AcademicProjectView,
   CreateMilestoneInput,
   CreateProjectInput,
+  ProjectLinkRecord,
   ProjectMilestoneRecord,
   UpdateMilestoneInput,
   UpdateProjectInput,
@@ -157,10 +158,34 @@ export class AcademicService {
     inProgress: AcademicProjectView[];
     completed: AcademicProjectView[];
   }> {
-    const all = await this.repo.getAllProjects();
-    const details = await Promise.all(all.map((p) => this.getProjectDetails(p.id)));
-    const views = details
-      .filter((p): p is AcademicProjectView => p !== null)
+    const [allProjects, allLinks, allMilestones] = await Promise.all([
+      this.repo.getAllProjects(),
+      this.repo.getAllLinks(),
+      this.repo.getAllMilestones(),
+    ]);
+
+    const linksByProject = new Map<string, ProjectLinkRecord[]>();
+    for (const link of allLinks) {
+      const list = linksByProject.get(link.projectId);
+      if (list) list.push(link);
+      else linksByProject.set(link.projectId, [link]);
+    }
+
+    const milestonesByProject = new Map<string, ProjectMilestoneRecord[]>();
+    for (const milestone of allMilestones) {
+      const list = milestonesByProject.get(milestone.projectId);
+      if (list) list.push(milestone);
+      else milestonesByProject.set(milestone.projectId, [milestone]);
+    }
+
+    const views = allProjects
+      .map((project) =>
+        mapProjectView(
+          project,
+          linksByProject.get(project.id) ?? [],
+          milestonesByProject.get(project.id) ?? [],
+        ),
+      )
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return {

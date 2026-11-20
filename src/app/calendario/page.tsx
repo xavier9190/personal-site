@@ -9,10 +9,7 @@ export default async function CalendarioPage() {
   const service = new CalendarService();
   const today = toRecifeDateString();
   const range = fetchRange('AGENDA', today, today);
-  const [initialItems, events] = await Promise.all([
-    service.listItems(range.from, range.to),
-    service.listEvents(),
-  ]);
+  const { items: initialItems, events } = await service.listItemsAndEvents(range.from, range.to);
 
   return (
     <CalendarClient

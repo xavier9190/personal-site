@@ -444,4 +444,88 @@ describe('FinancesService seam (Transactions, Filters, Balance, Privacy)', () =>
       await close();
     }
   });
+
+  it('computes getDashboardView and getHomeOverview consistently with single-round-trip bill syncing', async () => {
+    const { db, close } = await createPgliteTestDb();
+    const service = new FinancesService(db);
+
+    try {
+      await service.createTransaction({
+        type: 'INCOME',
+        description: 'SALÁRIO',
+        category: 'TRABALHO',
+        amountCents: 250000,
+        occurredAt: '2026-10-05',
+      });
+      await service.createTransaction({
+        type: 'EXPENSE',
+        description: 'MERCADO',
+        category: 'ALIMENTAÇÃO',
+        amountCents: 35000,
+        occurredAt: '2026-10-12',
+      });
+
+      const card = await service.createCreditCard({
+        name: 'Nubank',
+        closingDay: 8,
+        dueDay: 15,
+      });
+
+      await service.createInstallmentPlan({
+        description: 'Teclado',
+        category: 'COMPRAS',
+        totalInstallments: 4,
+        paidInstallments: 1,
+        installmentAmountCents: 12000,
+        creditCardId: card.id,
+        startMonth: '2026-09',
+      });
+
+      await service.createPayableBill({
+        title: 'Internet',
+        billType: 'FIXED_RECURRING',
+        amountCents: 10000,
+        category: 'MORADIA',
+        dueDate: '2026-09-10',
+        competenceMonth: '2026-09',
+      });
+
+      await service.toggleHideBalance();
+
+      const view = await service.getDashboardView({
+        period: 'THIS_MONTH',
+        referenceDate: '2026-10-15',
+      });
+      const expectedBills = await service.listPayableBills({
+        period: 'THIS_MONTH',
+        referenceDate: '2026-10-15',
+      });
+      const expectedSummary = await service.getBalanceSummary({
+        period: 'THIS_MONTH',
+        referenceDate: '2026-10-15',
+      });
+
+      expect(view.transactions).toHaveLength(2);
+      expect(view.payableBills).toEqual(expectedBills);
+      expect(view.payableBills.map((b) => b.title).sort()).toEqual(['FATURA NUBANK', 'INTERNET']);
+      expect(view.installmentPlans).toHaveLength(1);
+      expect(view.installmentPlans[0].creditCardName).toBe('NUBANK');
+      expect(view.summary).toEqual(expectedSummary);
+      expect(view.summary.balanceCents).toBe(215000);
+      expect(view.summary.toPayCents).toBe(22000);
+      expect(view.summary.pendingBillsCount).toBe(2);
+      expect(view.hideBalance).toBe(true);
+
+      const home = await service.getHomeOverview('2026-10-15');
+      expect(home.summary).toEqual(expectedSummary);
+      expect(home.hideBalance).toBe(true);
+      expect(home.allBills.map((b) => `${b.competenceMonth}:${b.title}`).sort()).toEqual([
+        '2026-09:INTERNET',
+        '2026-10:FATURA NUBANK',
+        '2026-10:INTERNET',
+      ]);
+    } finally {
+      await close();
+    }
+  });
 });

@@ -50,6 +50,10 @@ export class AcademicRepository {
       .where(eq(schema.projectLinks.projectId, projectId));
   }
 
+  async getAllLinks(): Promise<ProjectLinkRecord[]> {
+    return this.db.select().from(schema.projectLinks);
+  }
+
   async deleteLinksByProjectId(projectId: string): Promise<void> {
     await this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.projectId, projectId));
   }
@@ -71,6 +75,13 @@ export class AcademicRepository {
       .select()
       .from(schema.projectMilestones)
       .where(eq(schema.projectMilestones.projectId, projectId))
+      .orderBy(asc(schema.projectMilestones.sortOrder), asc(schema.projectMilestones.dueDate));
+  }
+
+  async getAllMilestones(): Promise<ProjectMilestoneRecord[]> {
+    return this.db
+      .select()
+      .from(schema.projectMilestones)
       .orderBy(asc(schema.projectMilestones.sortOrder), asc(schema.projectMilestones.dueDate));
   }
 

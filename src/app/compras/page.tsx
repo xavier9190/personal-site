@@ -7,10 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function ComprasPage() {
   const service = new ShoppingService();
   const today = toRecifeDateString();
-  const [{ wishlist, delivered }, inTransit] = await Promise.all([
-    service.listItemsBySection(),
-    service.listInTransitView(today),
-  ]);
+  const { wishlist, inTransit, delivered } = await service.getDashboardView(today);
 
   return (
     <ShoppingDashboardClient
