@@ -73,6 +73,8 @@ export const createCreditCardSchema = z.object({
   limitCents: z.number().int().positive().nullable().optional(),
 });
 
+export const updateCreditCardSchema = createCreditCardSchema.partial();
+
 export const createInstallmentPlanSchema = z.object({
   description: z.string().trim().min(1, 'DESCRIÇÃO OBRIGATÓRIA'),
   category: z.string().trim().min(1, 'CATEGORIA OBRIGATÓRIA'),
@@ -93,6 +95,7 @@ export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;
 export type CreatePayableBillInput = z.input<typeof createPayableBillSchema>;
 export type UpdatePayableBillInput = z.input<typeof updatePayableBillSchema>;
 export type CreateCreditCardInput = z.input<typeof createCreditCardSchema>;
+export type UpdateCreditCardInput = z.input<typeof updateCreditCardSchema>;
 export type CreateInstallmentPlanInput = z.input<typeof createInstallmentPlanSchema>;
 export type UpdateInstallmentPlanInput = z.input<typeof updateInstallmentPlanSchema>;
 

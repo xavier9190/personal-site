@@ -4,6 +4,7 @@ import {
   createInstallmentPlanSchema,
   createPayableBillSchema,
   createTransactionSchema,
+  updateCreditCardSchema,
   updateInstallmentPlanSchema,
   updatePayableBillSchema,
   updateTransactionSchema,
@@ -15,6 +16,7 @@ import {
   type InstallmentPlanRecord,
   type PayableBillRecord,
   type TransactionRecord,
+  type UpdateCreditCardInput,
   type UpdateInstallmentPlanInput,
   type UpdatePayableBillInput,
   type UpdateTransactionInput,
@@ -93,6 +95,20 @@ export function buildNewCreditCard(input: CreateCreditCardInput): CreditCardReco
     closingDay: parsed.closingDay,
     dueDay: parsed.dueDay,
     limitCents: parsed.limitCents ?? null,
+  };
+}
+
+export function buildUpdatedCreditCard(
+  existing: CreditCardRecord,
+  input: UpdateCreditCardInput,
+): CreditCardRecord {
+  const parsed = updateCreditCardSchema.parse(input);
+  return {
+    ...existing,
+    name: parsed.name ? parsed.name.toUpperCase() : existing.name,
+    closingDay: parsed.closingDay ?? existing.closingDay,
+    dueDay: parsed.dueDay ?? existing.dueDay,
+    limitCents: parsed.limitCents !== undefined ? parsed.limitCents : existing.limitCents,
   };
 }
 
