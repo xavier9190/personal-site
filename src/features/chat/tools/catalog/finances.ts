@@ -232,10 +232,6 @@ export function applyCreatePayableBillDefaults(
     out.category = inferFinanceCategory(out.title);
   }
 
-  if (isMissingValue(out.dueDate)) {
-    out.dueDate = ctx?.currentDateRecife ?? toRecifeDateString();
-  }
-
   if (
     isMissingValue(out.competenceMonth) &&
     typeof out.dueDate === 'string' &&
@@ -532,8 +528,6 @@ export const FINANCES_CATALOG: Record<string, ActionCatalogEntry> = {
     inferableDefaults: {
       billType: () => 'SINGLE_BILL',
       category: () => 'OUTROS',
-      dueDate: (ctx) => ctx?.currentDateRecife ?? toRecifeDateString(),
-      competenceMonth: (ctx) => (ctx?.currentDateRecife ?? toRecifeDateString()).slice(0, 7),
     },
     applyDefaults: applyCreatePayableBillDefaults,
     fields: {
@@ -562,9 +556,8 @@ export const FINANCES_CATALOG: Record<string, ActionCatalogEntry> = {
       dueDate: {
         name: 'dueDate',
         label: 'VENCIMENTO',
-        description: 'Data de vencimento (AAAA-MM-DD).',
-        required: false,
-        inferableDefault: 'DATA DE HOJE EM RECIFE',
+        description: 'Data de vencimento obrigatória (AAAA-MM-DD).',
+        required: true,
       },
       competenceMonth: {
         name: 'competenceMonth',

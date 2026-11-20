@@ -197,7 +197,7 @@ describe('Multi-Turn DRAFTING Slot-Filling, Cancellation & Topic Switching (/api
           return { text: '', toolCalls: [], source: 'mock' as const };
         }
         step += 1;
-        // Part A: 3-turn createPayableBill accumulation
+        // Part A: 3-turn createPayableBill accumulation (with billType & category inferred, missing amountCents & dueDate)
         if (step === 1) {
           return {
             text: '',
@@ -205,7 +205,7 @@ describe('Multi-Turn DRAFTING Slot-Filling, Cancellation & Topic Switching (/api
               {
                 id: 'bill-1',
                 name: 'createPayableBill',
-                args: { title: 'CONTA DE ENERGIA', amountCents: 18500 },
+                args: { title: 'CONTA DE ENERGIA' },
               },
             ],
             source: 'mock' as const,
@@ -218,7 +218,7 @@ describe('Multi-Turn DRAFTING Slot-Filling, Cancellation & Topic Switching (/api
               {
                 id: 'bill-2',
                 name: 'createPayableBill',
-                args: { billType: 'FIXED_RECURRING', category: 'MORADIA' },
+                args: { amountCents: 18500 },
               },
             ],
             source: 'mock' as const,
@@ -300,14 +300,14 @@ describe('Multi-Turn DRAFTING Slot-Filling, Cancellation & Topic Switching (/api
     const calendar = new CalendarService(testDb);
     const thread = await chat.createThread('MULTI STEP DRAFT');
 
-    // Turn 1: createPayableBill missing billType, category, dueDate
-    const t1 = await postChatTurn(thread.id, 'cadastra conta de energia de 185 reais');
+    // Turn 1: createPayableBill missing amountCents and dueDate (billType & category inferred automatically)
+    const t1 = await postChatTurn(thread.id, 'cadastra conta de energia');
     const draftId = t1.doneEvent!.toolCalls[0].actionId;
     expect(t1.doneEvent!.toolCalls[0].status).toBe('DRAFTING');
-    expect(t1.doneEvent!.toolCalls[0].missingFields).toEqual(['billType', 'category', 'dueDate']);
+    expect(t1.doneEvent!.toolCalls[0].missingFields).toEqual(['amountCents', 'dueDate']);
 
-    // Turn 2: supply billType & category -> same draft updated, only dueDate remains
-    const t2 = await postChatTurn(thread.id, 'fixa de moradia');
+    // Turn 2: supply amountCents -> same draft updated, only dueDate remains
+    const t2 = await postChatTurn(thread.id, '185 reais');
     expect(t2.doneEvent!.toolCalls[0].status).toBe('DRAFTING');
     expect(t2.doneEvent!.toolCalls[0].actionId).toBe(draftId);
     expect(t2.doneEvent!.toolCalls[0].missingFields).toEqual(['dueDate']);
@@ -318,7 +318,7 @@ describe('Multi-Turn DRAFTING Slot-Filling, Cancellation & Topic Switching (/api
       category: 'MORADIA',
     });
     expect(t2.doneEvent!.assistantMessage.content).toContain('VENCIMENTO');
-    expect(t2.doneEvent!.assistantMessage.content).not.toContain('CATEGORIA');
+    expect(t2.doneEvent!.assistantMessage.content).not.toContain('VALOR');
 
     // Turn 3: supply dueDate -> executed!
     const t3 = await postChatTurn(thread.id, 'vence dia 28/11');

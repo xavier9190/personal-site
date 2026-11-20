@@ -581,8 +581,8 @@ describe('End-to-End Acadêmico & Compras Parity via /api/chat/stream (PGlite + 
                   name: 'CADEIRA',
                   priceCents: 90000,
                   storeApp: 'Amazon',
-                  estimatedDeliveryDate: '2026-12-20',
-                  alreadyLoggedInFinances: false,
+                  estimatedDeliveryDate: '2026-02-30',
+                  alreadyLoggedInFinances: true,
                 },
               },
             ],
@@ -618,7 +618,7 @@ describe('End-to-End Acadêmico & Compras Parity via /api/chat/stream (PGlite + 
 
     expect(done.toolCalls).toHaveLength(0);
     expect(done.assistantMessage.content).toContain('URL INVÁLIDA');
-    expect(done.assistantMessage.content).toContain('FORMA DE PAGAMENTO OBRIGATÓRIA');
+    expect(done.assistantMessage.content).toContain('DATA INVÁLIDA');
     expect((await academic.getProjectDetails(project.id))?.links).toHaveLength(0);
     expect((await shopping.listItemsBySection()).inTransit).toHaveLength(0);
   });

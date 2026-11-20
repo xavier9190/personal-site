@@ -288,12 +288,12 @@ describe('Ticket #14: Finanças Schema Single Source of Truth & Chat Parity', ()
     const today = toRecifeDateString();
     const expectedMonth = today.slice(0, 7);
 
-    // 1. Create all 4 Conta a Pagar types (canonical + aliases) with omitted dueDate & category
+    // 1. Create all 4 Conta a Pagar types (canonical + aliases) with omitted category & inferred billType/competenceMonth
     mockStreamAiTurn([
       {
         id: 'bill-fixed',
         name: 'createPayableBill',
-        args: { title: 'Internet Fibra', billType: 'FIXED', amountCents: 12000 },
+        args: { title: 'Internet Fibra', billType: 'FIXED', amountCents: 12000, dueDate: today },
       },
       {
         id: 'bill-card',
@@ -302,18 +302,19 @@ describe('Ticket #14: Finanças Schema Single Source of Truth & Chat Parity', ()
           title: 'Fatura Inter Manual',
           billType: 'CREDIT_CARD',
           amountCents: 45000,
+          dueDate: today,
           creditCardId: card.id,
         },
       },
       {
         id: 'bill-debt',
         name: 'createPayableBill',
-        args: { title: 'Devo ao Caio', billType: 'DEBT', amountCents: 8000 },
+        args: { title: 'Devo ao Caio', billType: 'DEBT', amountCents: 8000, dueDate: today },
       },
       {
         id: 'bill-single',
         name: 'createPayableBill',
-        args: { title: 'IPVA Parcela', billType: 'SINGLE_BILL', amountCents: 30000 },
+        args: { title: 'IPVA Parcela', billType: 'SINGLE_BILL', amountCents: 30000, dueDate: today },
       },
     ]);
 
@@ -640,7 +641,7 @@ describe('Ticket #14: Finanças Schema Single Source of Truth & Chat Parity', ()
 
     const billRes = await executeChatTool(
       'createPayableBill',
-      { title: 'Aluguel Apartamento', amountCents: 180000 },
+      { title: 'Aluguel Apartamento', amountCents: 180000, dueDate: '2026-11-20' },
       { threadId: thread.id, db: testDb, currentDateRecife: '2026-11-20' },
     );
     expect(billRes.status).toBe('CONFIRMED');
