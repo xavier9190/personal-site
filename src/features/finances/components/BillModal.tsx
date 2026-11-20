@@ -119,44 +119,64 @@ export function BillModal({
       title={isEditing ? 'EDITAR CONTA' : 'NOVA CONTA'}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input
-          aria-label="TÍTULO DA CONTA"
-          placeholder="TÍTULO (EX: INTERNET, ALUGUEL)"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className={inputClass}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
-          <select
-            aria-label="TIPO"
-            value={billType}
-            onChange={(e) => setBillType(e.target.value as BillType)}
-            className={inputClass}
-          >
-            {BILL_TYPES.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+        <div>
+          <label htmlFor="bill-title" className="mb-1 block text-xs">
+            TÍTULO DA CONTA
+          </label>
           <input
-            aria-label="VALOR"
-            placeholder="VALOR R$ (EX: 120,00)"
-            inputMode="decimal"
-            value={amountBRL}
-            onChange={(e) => setAmountBRL(e.target.value)}
+            id="bill-title"
+            placeholder="EX: INTERNET, ALUGUEL"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             className={inputClass}
           />
         </div>
 
-        <input
-          aria-label="DATA DE VENCIMENTO"
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className={inputClass}
-        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
+          <div>
+            <label htmlFor="bill-type" className="mb-1 block text-xs">
+              TIPO
+            </label>
+            <select
+              id="bill-type"
+              value={billType}
+              onChange={(e) => setBillType(e.target.value as BillType)}
+              className={inputClass}
+            >
+              {BILL_TYPES.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="bill-amount" className="mb-1 block text-xs">
+              VALOR (R$)
+            </label>
+            <input
+              id="bill-amount"
+              placeholder="EX: 120,00"
+              inputMode="decimal"
+              value={amountBRL}
+              onChange={(e) => setAmountBRL(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="bill-due-date" className="mb-1 block text-xs">
+            DATA DE VENCIMENTO
+          </label>
+          <input
+            id="bill-due-date"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className={inputClass}
+          />
+        </div>
 
         <CategorySelector
           value={category}

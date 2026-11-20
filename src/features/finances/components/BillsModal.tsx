@@ -136,42 +136,62 @@ export function BillsModal({ isOpen, onClose, bills, availableCategories }: Bill
           }}
           className="space-y-3 border-t-2 border-[#f1f3f5] pt-3"
         >
-          <input
-            aria-label="TÍTULO DA CONTA"
-            placeholder="TÍTULO (EX: INTERNET)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className={inputClass}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <select
-              aria-label="TIPO"
-              value={billType}
-              onChange={(e) => setBillType(e.target.value as BillType)}
-              className={inputClass}
-            >
-              {BILL_TYPES.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+          <div>
+            <label htmlFor="bills-title" className="mb-1 block text-xs">
+              TÍTULO DA CONTA
+            </label>
             <input
-              aria-label="VALOR"
-              placeholder="VALOR (R$)"
-              inputMode="decimal"
-              value={amountBRL}
-              onChange={(e) => setAmountBRL(e.target.value)}
+              id="bills-title"
+              placeholder="EX: INTERNET, ALUGUEL"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               className={inputClass}
             />
           </div>
-          <input
-            aria-label="VENCIMENTO"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className={inputClass}
-          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
+            <div>
+              <label htmlFor="bills-type" className="mb-1 block text-xs">
+                TIPO
+              </label>
+              <select
+                id="bills-type"
+                value={billType}
+                onChange={(e) => setBillType(e.target.value as BillType)}
+                className={inputClass}
+              >
+                {BILL_TYPES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="bills-amount" className="mb-1 block text-xs">
+                VALOR (R$)
+              </label>
+              <input
+                id="bills-amount"
+                placeholder="EX: 120,00"
+                inputMode="decimal"
+                value={amountBRL}
+                onChange={(e) => setAmountBRL(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="bills-due-date" className="mb-1 block text-xs">
+              DATA DE VENCIMENTO
+            </label>
+            <input
+              id="bills-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <CategorySelector
             value={category}
             onChange={setCategory}

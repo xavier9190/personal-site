@@ -39,7 +39,7 @@ export function CategorySelector({
   }
 
   return (
-    <div className="space-y-2">
+    <div>
       <label htmlFor="tx-category" className="mb-1 block text-xs">
         CATEGORIA
       </label>

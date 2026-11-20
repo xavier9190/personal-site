@@ -123,62 +123,92 @@ export function InstallmentModal({
         }}
         className="space-y-3"
       >
-        <input
-          aria-label="DESCRIÇÃO"
-          placeholder="DESCRIÇÃO (EX: MONITOR 144HZ)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className={inputClass}
-        />
-        <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label htmlFor="installment-description" className="mb-1 block text-xs">
+            DESCRIÇÃO
+          </label>
           <input
-            aria-label="TOTAL DE PARCELAS"
-            placeholder="TOTAL"
-            type="number"
-            min={1}
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
-            className={inputClass}
-          />
-          <input
-            aria-label="PARCELAS PAGAS"
-            placeholder="PAGAS"
-            type="number"
-            min={0}
-            value={paid}
-            onChange={(e) => setPaid(e.target.value)}
-            className={inputClass}
-          />
-          <input
-            aria-label="VALOR DA PARCELA"
-            placeholder="R$ PARCELA"
-            inputMode="decimal"
-            value={amountBRL}
-            onChange={(e) => setAmountBRL(e.target.value)}
+            id="installment-description"
+            placeholder="EX: MONITOR 144HZ"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             className={inputClass}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <select
-            aria-label="CARTÃO"
-            value={cardId}
-            onChange={(e) => setCardId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">AVULSO (SEM CARTÃO)</option>
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name}
-              </option>
-            ))}
-          </select>
-          <input
-            aria-label="MÊS DE INÍCIO"
-            type="month"
-            value={startMonth}
-            onChange={(e) => setStartMonth(e.target.value)}
-            className={inputClass}
-          />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+          <div>
+            <label htmlFor="installment-total" className="mb-1 block text-xs">
+              Nº DE PARCELAS
+            </label>
+            <input
+              id="installment-total"
+              placeholder="EX: 12"
+              type="number"
+              min={1}
+              value={total}
+              onChange={(e) => setTotal(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="installment-paid" className="mb-1 block text-xs">
+              PARCELAS PAGAS
+            </label>
+            <input
+              id="installment-paid"
+              placeholder="0"
+              type="number"
+              min={0}
+              value={paid}
+              onChange={(e) => setPaid(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="installment-amount" className="mb-1 block text-xs">
+              PARCELA (R$)
+            </label>
+            <input
+              id="installment-amount"
+              placeholder="EX: 89,90"
+              inputMode="decimal"
+              value={amountBRL}
+              onChange={(e) => setAmountBRL(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
+          <div>
+            <label htmlFor="installment-card" className="mb-1 block text-xs">
+              CARTÃO
+            </label>
+            <select
+              id="installment-card"
+              value={cardId}
+              onChange={(e) => setCardId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">AVULSO (SEM CARTÃO)</option>
+              {cards.map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="installment-start-month" className="mb-1 block text-xs">
+              MÊS DE INÍCIO
+            </label>
+            <input
+              id="installment-start-month"
+              type="month"
+              value={startMonth}
+              onChange={(e) => setStartMonth(e.target.value)}
+              className={inputClass}
+            />
+          </div>
         </div>
         <CategorySelector
           value={category}

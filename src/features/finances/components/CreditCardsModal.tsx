@@ -78,34 +78,49 @@ export function CreditCardsModal({ isOpen, onClose, cards }: CreditCardsModalPro
           }}
           className="space-y-3 border-t-2 border-[#f1f3f5] pt-3"
         >
-          <input
-            aria-label="NOME DO CARTÃO"
-            placeholder="NOME (EX: NUBANK)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputClass}
-          />
-          <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="card-name" className="mb-1 block text-xs">
+              NOME DO CARTÃO
+            </label>
             <input
-              aria-label="DIA DE FECHAMENTO"
-              placeholder="FECHAMENTO"
-              type="number"
-              min={1}
-              max={31}
-              value={closingDay}
-              onChange={(e) => setClosingDay(e.target.value)}
+              id="card-name"
+              placeholder="EX: NUBANK"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className={inputClass}
             />
-            <input
-              aria-label="DIA DE VENCIMENTO"
-              placeholder="VENCIMENTO"
-              type="number"
-              min={1}
-              max={31}
-              value={dueDay}
-              onChange={(e) => setDueDay(e.target.value)}
-              className={inputClass}
-            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <label htmlFor="card-closing-day" className="mb-1 block text-xs">
+                DIA DE FECHAMENTO
+              </label>
+              <input
+                id="card-closing-day"
+                placeholder="EX: 8"
+                type="number"
+                min={1}
+                max={31}
+                value={closingDay}
+                onChange={(e) => setClosingDay(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="card-due-day" className="mb-1 block text-xs">
+                DIA DE VENCIMENTO
+              </label>
+              <input
+                id="card-due-day"
+                placeholder="EX: 15"
+                type="number"
+                min={1}
+                max={31}
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+                className={inputClass}
+              />
+            </div>
           </div>
           {error && (
             <p className="border-2 border-dashed border-[#f1f3f5] px-3 py-2 text-xs">{error}</p>
