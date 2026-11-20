@@ -35,7 +35,7 @@ export function FixedBillsSection({ bills, onOpenBills, onEditBill }: FixedBills
         <button
           type="button"
           onClick={onOpenBills}
-          className="text-xs text-[#868e96] underline text-left pt-2 uppercase"
+          className="cursor-pointer text-xs text-[#868e96] underline text-left pt-2 uppercase"
         >
           NENHUMA CONTA FIXA. CLIQUE PARA CADASTRAR EM CONTAS A PAGAR.
         </button>
