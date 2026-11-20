@@ -1,12 +1,26 @@
 import type { FunctionDeclaration } from '@google/genai';
 import type { ChatAttachment } from './intent';
 
+export interface ActiveDraftContext {
+  actionId: string;
+  toolName: string;
+  displayName: string;
+  entityLabel: string;
+  collectedArgs: Record<string, unknown>;
+  missingFields: Array<{
+    name: string;
+    label: string;
+    description: string;
+  }>;
+}
+
 export interface ChatContext {
   currentDateRecife: string;
   currentTimeRecife: string;
   timeZone: 'America/Recife';
   summaryUpcomingEvents?: string;
   summaryFinances?: string;
+  activeDraft?: ActiveDraftContext | null;
   systemPrompt: string;
 }
 
@@ -25,10 +39,11 @@ export interface AIToolCallRequest {
 export interface AIToolResultInput {
   toolName: string;
   callId?: string;
-  status: 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS' | 'ERROR';
+  status: 'DRAFTING' | 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS' | 'ERROR';
   description: string;
   data?: unknown;
   error?: string;
+  missingFieldLabels?: string[];
 }
 
 export interface GenerateTurnInput {

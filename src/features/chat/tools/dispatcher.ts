@@ -8,21 +8,27 @@ import { ShoppingService } from '@/features/shopping/service';
 import { ChatService } from '@/features/chat/service';
 import { formatCentsToBRL } from '@/lib/currency';
 import { ACTION_CATALOG, computeDefaultEndTime, HEX_TO_COLOR } from './catalog';
+import type { DraftSummary } from './slots';
 
 export interface ToolExecutionContext {
   threadId: string;
   db?: AppDatabase;
   currentDateRecife?: string;
+  draftActionId?: string;
 }
 
 export interface ToolExecutionResult {
   toolName: string;
-  status: 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS';
+  status: 'DRAFTING' | 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS';
   actionId?: string;
   description: string;
   isDestructive: boolean;
   data?: unknown;
   error?: string;
+  draftArgs?: Record<string, unknown>;
+  missingFields?: string[];
+  missingFieldLabels?: string[];
+  draftSummary?: DraftSummary;
 }
 
 export class ChatToolDispatcher {
@@ -196,15 +202,21 @@ export class ChatToolDispatcher {
       }
     }
 
-    const actionId = crypto.randomUUID();
-    const actionRecord = await this.chat.createPendingAction({
-      id: actionId,
-      threadId: context.threadId,
-      toolName,
-      argsJson: JSON.stringify(args),
-      status: 'PENDING_CONFIRMATION',
-      undoSnapshotJson: entitySnapshot ? JSON.stringify(entitySnapshot) : null,
-    });
+    const snapshotJson = entitySnapshot ? JSON.stringify(entitySnapshot) : null;
+    const actionRecord = context.draftActionId
+      ? await this.chat.completeDraft(context.draftActionId, {
+          argsJson: JSON.stringify(args),
+          status: 'PENDING_CONFIRMATION',
+          undoSnapshotJson: snapshotJson,
+        })
+      : await this.chat.createPendingAction({
+          id: crypto.randomUUID(),
+          threadId: context.threadId,
+          toolName,
+          argsJson: JSON.stringify(args),
+          status: 'PENDING_CONFIRMATION',
+          undoSnapshotJson: snapshotJson,
+        });
 
     return {
       toolName,
@@ -625,20 +637,26 @@ export class ChatToolDispatcher {
         throw new Error(`MUTATION NÃO IMPLEMENTADA: ${toolName}`);
     }
 
-    const actionId = crypto.randomUUID();
-    await this.chat.createPendingAction({
-      id: actionId,
-      threadId: context.threadId,
-      toolName,
-      argsJson: JSON.stringify(args),
-      status: 'CONFIRMED',
-      undoSnapshotJson: snapshot ? JSON.stringify(snapshot) : null,
-    });
+    const snapshotJson = snapshot ? JSON.stringify(snapshot) : null;
+    const actionRecord = context.draftActionId
+      ? await this.chat.completeDraft(context.draftActionId, {
+          argsJson: JSON.stringify(args),
+          status: 'CONFIRMED',
+          undoSnapshotJson: snapshotJson,
+        })
+      : await this.chat.createPendingAction({
+          id: crypto.randomUUID(),
+          threadId: context.threadId,
+          toolName,
+          argsJson: JSON.stringify(args),
+          status: 'CONFIRMED',
+          undoSnapshotJson: snapshotJson,
+        });
 
     return {
       toolName,
       status: 'CONFIRMED',
-      actionId,
+      actionId: actionRecord.id,
       description,
       isDestructive: false,
       data,
@@ -705,19 +723,22 @@ export class ChatToolDispatcher {
   }
 
   // ------------------------------------------------------------
-  // Cancel pending action
+  // Cancel pending action (including active DRAFTING actions)
   // ------------------------------------------------------------
   async cancelPendingAction(actionId: string): Promise<{ ok: boolean; message: string }> {
     const action = await this.chat.getPendingAction(actionId);
     if (!action) {
       throw new Error(`AÇÃO NÃO ENCONTRADA: ${actionId}`);
     }
-    if (action.status !== 'PENDING_CONFIRMATION') {
+    if (action.status !== 'PENDING_CONFIRMATION' && action.status !== 'DRAFTING') {
       return { ok: false, message: `AÇÃO NÃO ESTÁ PENDENTE: ${action.status}` };
     }
 
     await this.chat.updatePendingActionStatus(actionId, 'CANCELLED');
-    return { ok: true, message: 'AÇÃO CANCELADA' };
+    return {
+      ok: true,
+      message: action.status === 'DRAFTING' ? 'RASCUNHO CANCELADO' : 'AÇÃO CANCELADA',
+    };
   }
 
   // ------------------------------------------------------------

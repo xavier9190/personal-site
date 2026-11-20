@@ -347,7 +347,12 @@ describe('POST /api/chat/stream', () => {
           {
             id: 'tc-invalid',
             name: 'createCalendarEvent',
-            args: { date: '2026-11-29', startTime: '14:00' }, // missing required title
+            args: {
+              title: 'REUNIÃO INVÁLIDA',
+              date: '2026-11-29',
+              startTime: '14:00',
+              endTime: '12:00', // invalid endTime <= startTime
+            },
           },
           {
             id: 'tc-valid',
@@ -382,7 +387,7 @@ describe('POST /api/chat/stream', () => {
     expect(doneEvent?.toolCalls).toHaveLength(1);
     expect(doneEvent?.toolCalls[0].toolName).toBe('addWishlistItem');
     expect(doneEvent?.toolCalls[0].status).toBe('CONFIRMED');
-    expect(doneEvent?.assistantMessage.content).toContain('TÍTULO OBRIGATÓRIO');
+    expect(doneEvent?.assistantMessage.content).toContain('FIM DEVE SER DEPOIS DO INÍCIO');
 
     const shopping = new ShoppingService(testDb);
     expect((await shopping.listItemsBySection()).wishlist.some((i) => i.name === 'MOUSE ERGONÔMICO')).toBe(true);
