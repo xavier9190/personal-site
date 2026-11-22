@@ -251,4 +251,62 @@ describe('AcademicService seam (Projects, Links, Milestones, Completion)', () =>
       await close();
     }
   });
+
+  it('adds, updates, and deletes individual project links without overwriting unrelated links', async () => {
+    const { db, close } = await createPgliteTestDb();
+    const service = new AcademicService(db);
+
+    try {
+      const project = await service.createProject({
+        title: 'Banco de Dados',
+        description: 'Modelagem e implementação SQL',
+        links: [{ label: 'GitHub', url: 'https://github.com/xavier/db' }],
+      });
+
+      const added = await service.addProjectLink(project.id, {
+        label: 'Figma',
+        url: 'https://figma.com/file/db-erd',
+      });
+      expect(added.projectId).toBe(project.id);
+      expect(added.label).toBe('FIGMA');
+      expect(added.url).toBe('https://figma.com/file/db-erd');
+
+      let details = (await service.getProjectDetails(project.id))!;
+      expect(details.links).toHaveLength(2);
+      expect(details.links.map((l) => l.label)).toEqual(['GITHUB', 'FIGMA']);
+
+      const updated = await service.updateProjectLink(added.id, {
+        label: 'Protótipo Figma',
+        url: 'https://figma.com/file/db-erd-v2',
+      });
+      expect(updated.label).toBe('PROTÓTIPO FIGMA');
+      expect(updated.url).toBe('https://figma.com/file/db-erd-v2');
+
+      details = (await service.getProjectDetails(project.id))!;
+      expect(details.links).toHaveLength(2);
+      expect(details.links.find((l) => l.label === 'GITHUB')?.url).toBe(
+        'https://github.com/xavier/db',
+      );
+      expect(details.links.find((l) => l.id === added.id)?.url).toBe(
+        'https://figma.com/file/db-erd-v2',
+      );
+
+      await service.deleteProjectLink(added.id);
+      details = (await service.getProjectDetails(project.id))!;
+      expect(details.links).toHaveLength(1);
+      expect(details.links[0].label).toBe('GITHUB');
+
+      await expect(
+        service.addProjectLink(project.id, { label: 'Link Quebrado', url: 'not-a-url' }),
+      ).rejects.toThrow();
+      await expect(
+        service.addProjectLink('nao-existe', { label: 'Docs', url: 'https://example.com/docs' }),
+      ).rejects.toThrow(/PROJETO NÃO ENCONTRADO/);
+      await expect(
+        service.updateProjectLink('nao-existe', { label: 'Docs' }),
+      ).rejects.toThrow(/LINK NÃO ENCONTRADO/);
+    } finally {
+      await close();
+    }
+  });
 });

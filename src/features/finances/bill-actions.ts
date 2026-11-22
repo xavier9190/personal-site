@@ -22,6 +22,7 @@ export interface CardFormPayload {
   name: string;
   closingDay: number;
   dueDay: number;
+  limitCents?: number | null;
 }
 
 export interface InstallmentFormPayload {
@@ -95,6 +96,11 @@ export async function deletePayableBillAction(id: string) {
 export async function createCreditCardAction(raw: CardFormPayload) {
   await requireSessionAuth();
   return run((s) => s.createCreditCard(raw), 'ERRO AO SALVAR CARTÃO');
+}
+
+export async function updateCreditCardAction(id: string, raw: Partial<CardFormPayload>) {
+  await requireSessionAuth();
+  return run((s) => s.updateCreditCard(id, raw), 'ERRO AO ATUALIZAR CARTÃO');
 }
 
 export async function deleteCreditCardAction(id: string) {

@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import type { AppDatabase } from '@/db';
 import { getDb } from '@/db';
 import * as schema from './schema';
+import type { PendingActionStatus } from './schema';
 
 export type ChatThreadRecord = typeof schema.chatThreads.$inferSelect;
 export type ChatMessageRecord = typeof schema.chatMessages.$inferSelect;
@@ -135,7 +136,8 @@ export class ChatService {
     threadId: string;
     toolName: string;
     argsJson: string;
-    status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE';
+    status: PendingActionStatus;
+    missingFieldsJson?: string | null;
     undoSnapshotJson?: string | null;
   }): Promise<PendingToolActionRecord> {
     const record: PendingToolActionRecord = {
@@ -144,6 +146,7 @@ export class ChatService {
       toolName: input.toolName,
       argsJson: input.argsJson,
       status: input.status,
+      missingFieldsJson: input.missingFieldsJson ?? null,
       undoSnapshotJson: input.undoSnapshotJson ?? null,
     };
     await this.db.insert(schema.pendingToolActions).values(record);
@@ -160,7 +163,7 @@ export class ChatService {
 
   async updatePendingActionStatus(
     id: string,
-    status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE',
+    status: PendingActionStatus,
     undoSnapshotJson?: string | null,
   ): Promise<PendingToolActionRecord> {
     const existing = await this.getPendingAction(id);
@@ -179,6 +182,122 @@ export class ChatService {
       .where(eq(schema.pendingToolActions.id, id));
 
     return { ...existing, ...updates };
+  }
+
+  async getActiveDraft(threadId: string): Promise<PendingToolActionRecord | null> {
+    const [draft] = await this.db
+      .select()
+      .from(schema.pendingToolActions)
+      .where(
+        and(
+          eq(schema.pendingToolActions.threadId, threadId),
+          eq(schema.pendingToolActions.status, 'DRAFTING'),
+        ),
+      );
+    return draft ?? null;
+  }
+
+  async upsertActiveDraft(input: {
+    id?: string;
+    threadId: string;
+    toolName: string;
+    argsJson: string;
+    missingFieldsJson: string;
+  }): Promise<PendingToolActionRecord> {
+    const existing = await this.getActiveDraft(input.threadId);
+    if (existing) {
+      if (existing.toolName === input.toolName) {
+        await this.db
+          .update(schema.pendingToolActions)
+          .set({
+            argsJson: input.argsJson,
+            missingFieldsJson: input.missingFieldsJson,
+          })
+          .where(eq(schema.pendingToolActions.id, existing.id));
+        return {
+          ...existing,
+          argsJson: input.argsJson,
+          missingFieldsJson: input.missingFieldsJson,
+        };
+      }
+      await this.cancelActiveDraft(input.threadId);
+    }
+
+    return this.createPendingAction({
+      id: input.id,
+      threadId: input.threadId,
+      toolName: input.toolName,
+      argsJson: input.argsJson,
+      status: 'DRAFTING',
+      missingFieldsJson: input.missingFieldsJson,
+      undoSnapshotJson: null,
+    });
+  }
+
+  async updateDraft(
+    id: string,
+    input: {
+      argsJson: string;
+      missingFieldsJson: string | null;
+      status?: PendingActionStatus;
+      undoSnapshotJson?: string | null;
+    },
+  ): Promise<PendingToolActionRecord> {
+    const existing = await this.getPendingAction(id);
+    if (!existing) {
+      throw new Error(`RASCUNHO NÃO ENCONTRADO: ${id}`);
+    }
+
+    const updates: Partial<PendingToolActionRecord> = {
+      argsJson: input.argsJson,
+      missingFieldsJson: input.missingFieldsJson,
+    };
+    if (input.status !== undefined) {
+      updates.status = input.status;
+    }
+    if (input.undoSnapshotJson !== undefined) {
+      updates.undoSnapshotJson = input.undoSnapshotJson;
+    }
+
+    await this.db
+      .update(schema.pendingToolActions)
+      .set(updates)
+      .where(eq(schema.pendingToolActions.id, id));
+
+    return { ...existing, ...updates };
+  }
+
+  async completeDraft(
+    id: string,
+    input: {
+      argsJson: string;
+      status: Exclude<PendingActionStatus, 'DRAFTING'>;
+      undoSnapshotJson?: string | null;
+    },
+  ): Promise<PendingToolActionRecord> {
+    return this.updateDraft(id, {
+      argsJson: input.argsJson,
+      missingFieldsJson: null,
+      status: input.status,
+      undoSnapshotJson: input.undoSnapshotJson ?? null,
+    });
+  }
+
+  async cancelActiveDraft(threadId: string): Promise<PendingToolActionRecord | null> {
+    const active = await this.getActiveDraft(threadId);
+    if (!active) {
+      return null;
+    }
+    return this.updatePendingActionStatus(active.id, 'CANCELLED');
+  }
+
+  async getActionStatusMap(threadId: string): Promise<Record<string, PendingActionStatus>> {
+    const actions = await this.listPendingActions(threadId);
+    const map: Record<string, PendingActionStatus> = {};
+    for (const action of actions) {
+      map[action.id] = action.status;
+    }
+    return map;
   }
 
   async listPendingActions(threadId?: string): Promise<PendingToolActionRecord[]> {

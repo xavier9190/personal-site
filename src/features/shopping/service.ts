@@ -5,46 +5,26 @@ import { getDb } from '@/db';
 import { FinancesService } from '@/features/finances/service';
 import { addDaysToPureDate, daysBetweenPureDates, toRecifeDateString } from '@/lib/dates';
 import * as schema from './schema';
+import {
+  addPurchasedItemSchema,
+  addWishlistItemSchema,
+  markDeliveredSchema,
+  markPurchasedSchema,
+  updateInTransitItemSchema,
+  updateWishlistItemSchema,
+  type AddPurchasedItemInput,
+  type AddWishlistItemInput,
+  type InTransitView,
+  type MarkPurchasedInput,
+  type PurchasePayment,
+  type ShoppingItemRecord,
+  type UpdateInTransitInput,
+  type UpdateWishlistItemInput,
+} from './types';
+
+export * from './types';
 
 export const DELIVERY_WINDOW_DAYS = 5;
-
-export type ShoppingItemRecord = typeof schema.shoppingItems.$inferSelect;
-
-export interface AddWishlistItemInput {
-  name: string;
-  priceCents: number;
-  productUrl?: string | null;
-}
-
-export interface UpdateInTransitInput extends AddWishlistItemInput {
-  storeApp: string;
-  estimatedDeliveryDate: string;
-}
-
-export type PurchasePayment =
-  | { mode: 'CASH' }
-  | { mode: 'INSTALLMENTS'; totalInstallments: number; startMonth: string; creditCardId?: string | null };
-
-export interface MarkPurchasedInput {
-  storeApp: string;
-  estimatedDeliveryDate: string;
-  purchasedAt?: string;
-  /** [SIM] = já lançado em Finanças; [NÃO] exige `payment`. */
-  alreadyLoggedInFinances: boolean;
-  payment?: PurchasePayment;
-}
-
-export interface AddPurchasedItemInput extends AddWishlistItemInput, MarkPurchasedInput {}
-
-export interface InTransitView extends ShoppingItemRecord {
-  estimatedDeliveryWindowEnd: string;
-  daysLeft: number;
-  daysLeftToWindowEnd: number;
-  isInDeliveryWindow: boolean;
-  isOverdue: boolean;
-  /** 0..1 do tempo decorrido entre compra e data estimada. */
-  progress: number;
-}
 
 export class ShoppingService {
   private readonly finances: FinancesService;
@@ -84,16 +64,12 @@ export class ShoppingService {
   }
 
   async addWishlistItem(input: AddWishlistItemInput): Promise<ShoppingItemRecord> {
-    const name = input.name.trim();
-    if (!name) throw new Error('NOME OBRIGATÓRIO');
-    if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
-      throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
-    }
+    const parsed = addWishlistItemSchema.parse(input);
     const record: ShoppingItemRecord = {
       id: crypto.randomUUID(),
-      name: name.toUpperCase(),
-      priceCents: input.priceCents,
-      productUrl: input.productUrl?.trim() || null,
+      name: parsed.name.toUpperCase(),
+      priceCents: parsed.priceCents,
+      productUrl: parsed.productUrl?.trim() || null,
       status: 'WISHLIST',
       storeApp: null,
       trackingUrl: null,
@@ -105,37 +81,33 @@ export class ShoppingService {
     return record;
   }
 
-  async updateWishlistItem(id: string, input: AddWishlistItemInput): Promise<ShoppingItemRecord> {
-    const name = input.name.trim();
-    if (!name) throw new Error('NOME OBRIGATÓRIO');
-    if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
-      throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
-    }
-    if ((await this.getItem(id)).status !== 'WISHLIST') throw new Error('ITEM NÃO ESTÁ NA WISHLIST');
+  async updateWishlistItem(id: string, input: UpdateWishlistItemInput): Promise<ShoppingItemRecord> {
+    const parsed = updateWishlistItemSchema.parse(input);
+    const item = await this.getItem(id);
+    if (item.status !== 'WISHLIST') throw new Error('ITEM NÃO ESTÁ NA WISHLIST');
     return this.patch(id, {
-      name: name.toUpperCase(),
-      priceCents: input.priceCents,
-      productUrl: input.productUrl?.trim() || null,
+      name: parsed.name !== undefined ? parsed.name.toUpperCase() : item.name,
+      priceCents: parsed.priceCents !== undefined ? parsed.priceCents : item.priceCents,
+      productUrl:
+        parsed.productUrl !== undefined ? parsed.productUrl?.trim() || null : item.productUrl,
     });
   }
 
   async updateInTransitItem(id: string, input: UpdateInTransitInput): Promise<ShoppingItemRecord> {
-    const name = input.name.trim();
-    if (!name) throw new Error('NOME OBRIGATÓRIO');
-    if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
-      throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
-    }
-    const storeApp = input.storeApp.trim();
-    if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
+    const parsed = updateInTransitItemSchema.parse(input);
     const item = await this.getItem(id);
     if (item.status !== 'IN_TRANSIT') throw new Error('ITEM NÃO ESTÁ A CAMINHO');
-    daysBetweenPureDates(item.purchasedAt!, input.estimatedDeliveryDate); // valida data
+    const nextEstimatedDeliveryDate = parsed.estimatedDeliveryDate ?? item.estimatedDeliveryDate!;
+    if (item.purchasedAt && nextEstimatedDeliveryDate) {
+      daysBetweenPureDates(item.purchasedAt, nextEstimatedDeliveryDate);
+    }
     return this.patch(id, {
-      name: name.toUpperCase(),
-      priceCents: input.priceCents,
-      productUrl: input.productUrl?.trim() || null,
-      storeApp: storeApp.toUpperCase(),
-      estimatedDeliveryDate: input.estimatedDeliveryDate,
+      name: parsed.name !== undefined ? parsed.name.toUpperCase() : item.name,
+      priceCents: parsed.priceCents !== undefined ? parsed.priceCents : item.priceCents,
+      productUrl:
+        parsed.productUrl !== undefined ? parsed.productUrl?.trim() || null : item.productUrl,
+      storeApp: parsed.storeApp !== undefined ? parsed.storeApp.toUpperCase() : item.storeApp,
+      estimatedDeliveryDate: nextEstimatedDeliveryDate,
     });
   }
 
@@ -144,41 +116,31 @@ export class ShoppingService {
   }
 
   async addPurchasedItem(input: AddPurchasedItemInput): Promise<ShoppingItemRecord> {
-    const name = input.name.trim();
-    if (!name) throw new Error('NOME OBRIGATÓRIO');
-    if (!Number.isInteger(input.priceCents) || input.priceCents <= 0) {
-      throw new Error('PREÇO DEVE SER MAIOR QUE ZERO');
-    }
-    const storeApp = input.storeApp.trim();
-    if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
-    const purchasedAt = input.purchasedAt ?? toRecifeDateString();
-    daysBetweenPureDates(purchasedAt, input.estimatedDeliveryDate); // valida datas
-
-    if (!input.alreadyLoggedInFinances && !input.payment) {
-      throw new Error('FORMA DE PAGAMENTO OBRIGATÓRIA');
-    }
+    const parsed = addPurchasedItemSchema.parse(input);
+    const purchasedAt = parsed.purchasedAt ?? toRecifeDateString();
+    daysBetweenPureDates(purchasedAt, parsed.estimatedDeliveryDate);
 
     const record: ShoppingItemRecord = {
       id: crypto.randomUUID(),
-      name: name.toUpperCase(),
-      priceCents: input.priceCents,
-      productUrl: input.productUrl?.trim() || null,
+      name: parsed.name.toUpperCase(),
+      priceCents: parsed.priceCents,
+      productUrl: parsed.productUrl?.trim() || null,
       status: 'IN_TRANSIT',
-      storeApp: storeApp.toUpperCase(),
+      storeApp: parsed.storeApp.toUpperCase(),
       trackingUrl: null,
       purchasedAt,
-      estimatedDeliveryDate: input.estimatedDeliveryDate,
+      estimatedDeliveryDate: parsed.estimatedDeliveryDate,
       deliveredAt: null,
     };
 
     await this.db.transaction(async (tx) => {
       await tx.insert(schema.shoppingItems).values(record);
 
-      if (!input.alreadyLoggedInFinances && input.payment) {
+      if (!parsed.alreadyLoggedInFinances && parsed.payment) {
         await this.logInFinances(
           record,
           purchasedAt,
-          input.payment,
+          parsed.payment,
           new FinancesService(tx as unknown as AppDatabase),
         );
       }
@@ -188,24 +150,32 @@ export class ShoppingService {
   }
 
   async markPurchased(id: string, input: MarkPurchasedInput): Promise<ShoppingItemRecord> {
+    const parsed = markPurchasedSchema.parse(input);
     const item = await this.getItem(id);
     if (item.status !== 'WISHLIST') throw new Error('ITEM JÁ FOI COMPRADO');
-    const storeApp = input.storeApp.trim();
-    if (!storeApp) throw new Error('APP DA COMPRA OBRIGATÓRIO');
-    const purchasedAt = input.purchasedAt ?? toRecifeDateString();
-    daysBetweenPureDates(purchasedAt, input.estimatedDeliveryDate); // valida datas
+    const purchasedAt = parsed.purchasedAt ?? toRecifeDateString();
+    daysBetweenPureDates(purchasedAt, parsed.estimatedDeliveryDate);
 
-    if (!input.alreadyLoggedInFinances) {
-      if (!input.payment) throw new Error('FORMA DE PAGAMENTO OBRIGATÓRIA');
-      await this.logInFinances(item, purchasedAt, input.payment, this.finances);
-    }
-
-    return this.patch(id, {
-      status: 'IN_TRANSIT',
-      storeApp: storeApp.toUpperCase(),
+    const patchValues = {
+      status: 'IN_TRANSIT' as const,
+      storeApp: parsed.storeApp.toUpperCase(),
       purchasedAt,
-      estimatedDeliveryDate: input.estimatedDeliveryDate,
+      estimatedDeliveryDate: parsed.estimatedDeliveryDate,
+    };
+
+    await this.db.transaction(async (tx) => {
+      if (!parsed.alreadyLoggedInFinances && parsed.payment) {
+        await this.logInFinances(
+          item,
+          purchasedAt,
+          parsed.payment,
+          new FinancesService(tx as unknown as AppDatabase),
+        );
+      }
+      await tx.update(schema.shoppingItems).set(patchValues).where(eq(schema.shoppingItems.id, id));
     });
+
+    return this.getItem(id);
   }
 
   private async logInFinances(
@@ -284,8 +254,10 @@ export class ShoppingService {
     id: string,
     deliveredAt: string = toRecifeDateString(),
   ): Promise<ShoppingItemRecord> {
+    const parsed = markDeliveredSchema.parse({ deliveredAt });
+    const finalDeliveredAt = parsed.deliveredAt ?? toRecifeDateString();
     if ((await this.getItem(id)).status !== 'IN_TRANSIT') throw new Error('ITEM NÃO ESTÁ A CAMINHO');
-    return this.patch(id, { status: 'DELIVERED', deliveredAt });
+    return this.patch(id, { status: 'DELIVERED', deliveredAt: finalDeliveredAt });
   }
 
   async revertDelivered(id: string): Promise<ShoppingItemRecord> {

@@ -7,21 +7,28 @@ import { AcademicService } from '@/features/academic/service';
 import { ShoppingService } from '@/features/shopping/service';
 import { ChatService } from '@/features/chat/service';
 import { formatCentsToBRL } from '@/lib/currency';
-import { HEX_TO_COLOR, TOOL_DEFINITIONS } from './definitions';
+import { ACTION_CATALOG, computeDefaultEndTime, HEX_TO_COLOR } from './catalog';
+import type { DraftSummary } from './slots';
 
 export interface ToolExecutionContext {
   threadId: string;
   db?: AppDatabase;
+  currentDateRecife?: string;
+  draftActionId?: string;
 }
 
 export interface ToolExecutionResult {
   toolName: string;
-  status: 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS';
+  status: 'DRAFTING' | 'CONFIRMED' | 'PENDING_CONFIRMATION' | 'READ_SUCCESS';
   actionId?: string;
   description: string;
   isDestructive: boolean;
   data?: unknown;
   error?: string;
+  draftArgs?: Record<string, unknown>;
+  missingFields?: string[];
+  missingFieldLabels?: string[];
+  draftSummary?: DraftSummary;
 }
 
 export class ChatToolDispatcher {
@@ -44,12 +51,19 @@ export class ChatToolDispatcher {
     rawArgs: unknown,
     context: ToolExecutionContext,
   ): Promise<ToolExecutionResult> {
-    const definition = TOOL_DEFINITIONS[toolName];
+    const definition = ACTION_CATALOG[toolName];
     if (!definition) {
       throw new Error(`TOOL DESCONHECIDA: ${toolName}`);
     }
 
-    const validatedArgs = definition.schema.parse(rawArgs);
+    const preparedArgs =
+      definition.applyDefaults && rawArgs && typeof rawArgs === 'object'
+        ? definition.applyDefaults(rawArgs as Record<string, unknown>, {
+            currentDateRecife: context.currentDateRecife,
+          })
+        : rawArgs;
+
+    const validatedArgs = definition.schema.parse(preparedArgs);
 
     // ============================================================
     // DESTRUCTIVE ACTIONS: GUARDRAIL OBRIGATÓRIO (NÃO EXECUTA DIRETO)
@@ -103,7 +117,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteTransaction': {
-        const tx = (await this.finances.listTransactions()).find((t) => t.id === id);
+        const tx = await this.finances.getTransaction(id);
         if (tx) {
           description = `EXCLUIR TRANSAÇÃO: ${tx.description} (${formatCentsToBRL(tx.amountCents)})`;
           entitySnapshot = tx;
@@ -113,7 +127,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deletePayableBill': {
-        const bill = (await this.finances.listPayableBills()).find((b) => b.id === id);
+        const bill = await this.finances.getPayableBill(id);
         if (bill) {
           description = `EXCLUIR CONTA A PAGAR: ${bill.title} (${formatCentsToBRL(bill.amountCents)})`;
           entitySnapshot = bill;
@@ -123,12 +137,22 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteInstallmentPlan': {
-        const plan = (await this.finances.listInstallmentPlans()).find((p) => p.id === id);
+        const plan = await this.finances.getInstallmentPlan(id);
         if (plan) {
           description = `EXCLUIR PARCELAMENTO: ${plan.description}`;
           entitySnapshot = plan;
         } else {
           description = `EXCLUIR PARCELAMENTO: ID ${id}`;
+        }
+        break;
+      }
+      case 'deleteCreditCard': {
+        const card = await this.finances.getCreditCard(id);
+        if (card) {
+          description = `EXCLUIR CARTÃO: ${card.name}`;
+          entitySnapshot = card;
+        } else {
+          description = `EXCLUIR CARTÃO: ID ${id}`;
         }
         break;
       }
@@ -143,7 +167,23 @@ export class ChatToolDispatcher {
         break;
       }
       case 'deleteMilestone': {
-        description = `EXCLUIR MARCO ACADÊMICO: ID ${id}`;
+        const ms = await this.academic.getMilestoneById(id);
+        if (ms) {
+          description = `EXCLUIR MARCO ACADÊMICO: ${ms.title} (${ms.dueDate})`;
+          entitySnapshot = ms;
+        } else {
+          description = `EXCLUIR MARCO ACADÊMICO: ID ${id}`;
+        }
+        break;
+      }
+      case 'deleteProjectLink': {
+        const link = await this.academic.getProjectLinkById(id);
+        if (link) {
+          description = `EXCLUIR LINK DE PROJETO: ${link.label} (${link.url})`;
+          entitySnapshot = link;
+        } else {
+          description = `EXCLUIR LINK DE PROJETO: ID ${id}`;
+        }
         break;
       }
       case 'deleteWishlistItem': {
@@ -162,15 +202,21 @@ export class ChatToolDispatcher {
       }
     }
 
-    const actionId = crypto.randomUUID();
-    const actionRecord = await this.chat.createPendingAction({
-      id: actionId,
-      threadId: context.threadId,
-      toolName,
-      argsJson: JSON.stringify(args),
-      status: 'PENDING_CONFIRMATION',
-      undoSnapshotJson: entitySnapshot ? JSON.stringify(entitySnapshot) : null,
-    });
+    const snapshotJson = entitySnapshot ? JSON.stringify(entitySnapshot) : null;
+    const actionRecord = context.draftActionId
+      ? await this.chat.completeDraft(context.draftActionId, {
+          argsJson: JSON.stringify(args),
+          status: 'PENDING_CONFIRMATION',
+          undoSnapshotJson: snapshotJson,
+        })
+      : await this.chat.createPendingAction({
+          id: crypto.randomUUID(),
+          threadId: context.threadId,
+          toolName,
+          argsJson: JSON.stringify(args),
+          status: 'PENDING_CONFIRMATION',
+          undoSnapshotJson: snapshotJson,
+        });
 
     return {
       toolName,
@@ -206,12 +252,27 @@ export class ChatToolDispatcher {
       case 'updateCalendarEvent': {
         const before = await this.calendar.getEvent(args.id);
         const colorKey = args.color ?? (before.color in HEX_TO_COLOR ? HEX_TO_COLOR[before.color] : before.color);
+        const allDay = args.allDay !== undefined ? args.allDay : Boolean(before.allDay);
+        const nextStartTime = args.startTime ?? (before.allDay ? undefined : before.startAt.slice(11, 16));
+        let nextEndTime = args.endTime ?? (before.allDay ? undefined : before.endAt.slice(11, 16));
+
+        if (!allDay && nextStartTime && args.endTime === undefined && (!nextEndTime || nextEndTime <= nextStartTime)) {
+          let durationMinutes = 60;
+          if (!before.allDay) {
+            const [sh, sm] = before.startAt.slice(11, 16).split(':').map(Number);
+            const [eh, em] = before.endAt.slice(11, 16).split(':').map(Number);
+            const diff = eh * 60 + em - (sh * 60 + sm);
+            if (diff > 0) durationMinutes = diff;
+          }
+          nextEndTime = computeDefaultEndTime(nextStartTime, durationMinutes);
+        }
+
         const merged = {
           title: args.title ?? before.title,
           date: args.date ?? before.startAt.slice(0, 10),
-          startTime: args.startTime ?? (before.allDay ? undefined : before.startAt.slice(11, 16)),
-          endTime: args.endTime ?? (before.allDay ? undefined : before.endAt.slice(11, 16)),
-          allDay: args.allDay !== undefined ? args.allDay : Boolean(before.allDay),
+          startTime: allDay ? undefined : nextStartTime,
+          endTime: allDay ? undefined : nextEndTime,
+          allDay,
           color: colorKey,
           description: args.description !== undefined ? args.description : (before.description ?? undefined),
           recurrence: args.recurrence ?? (before.recurrenceRule as any),
@@ -233,7 +294,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'updateTransaction': {
-        const before = (await this.finances.listTransactions()).find((t) => t.id === args.id);
+        const before = await this.finances.getTransaction(args.id);
         const updated = await this.finances.updateTransaction(args.id, args);
         description = `ATUALIZOU TRANSAÇÃO: ${updated.description}`;
         snapshot = { entity: 'TRANSACTION', operation: 'UPDATE', id: args.id, previousData: before };
@@ -247,8 +308,17 @@ export class ChatToolDispatcher {
         data = bill;
         break;
       }
+      case 'updatePayableBill': {
+        const before = await this.finances.getPayableBill(args.id);
+        if (!before) throw new Error(`CONTA NÃO ENCONTRADA: ${args.id}`);
+        const updated = await this.finances.updatePayableBill(args.id, args);
+        description = `ATUALIZOU CONTA A PAGAR: ${updated.title} (${formatCentsToBRL(updated.amountCents)})`;
+        snapshot = { entity: 'PAYABLE_BILL', operation: 'UPDATE', id: args.id, previousData: before };
+        data = updated;
+        break;
+      }
       case 'togglePayableBillStatus': {
-        const bill = (await this.finances.listPayableBills()).find((b) => b.id === args.id);
+        const bill = await this.finances.getPayableBill(args.id);
         if (!bill) throw new Error(`CONTA NÃO ENCONTRADA: ${args.id}`);
         const willBePaid = args.paid !== undefined ? args.paid : bill.status !== 'PAID';
         const updated = willBePaid
@@ -272,6 +342,55 @@ export class ChatToolDispatcher {
         data = plan;
         break;
       }
+      case 'updateInstallmentPlan': {
+        const before = await this.finances.getInstallmentPlan(args.id);
+        if (!before) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.updateInstallmentPlan(args.id, args);
+        description = `ATUALIZOU PARCELAMENTO: ${updated.description} (${updated.totalInstallments}X DE ${formatCentsToBRL(updated.installmentAmountCents)})`;
+        snapshot = {
+          entity: 'INSTALLMENT_PLAN',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
+        break;
+      }
+      case 'advanceInstallment': {
+        const before = await this.finances.getInstallmentPlan(args.id);
+        if (!before) throw new Error(`PARCELAMENTO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.advanceInstallment(args.id);
+        description = `AVANÇOU PARCELA: ${updated.description} (${updated.paidInstallments}/${updated.totalInstallments})`;
+        snapshot = {
+          entity: 'INSTALLMENT_PLAN',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
+        break;
+      }
+      case 'createCreditCard': {
+        const card = await this.finances.createCreditCard(args);
+        description = `CRIOU CARTÃO: ${card.name} (FECHA DIA ${card.closingDay}, VENCE DIA ${card.dueDay})`;
+        snapshot = { entity: 'CREDIT_CARD', operation: 'CREATE', id: card.id };
+        data = card;
+        break;
+      }
+      case 'updateCreditCard': {
+        const before = await this.finances.getCreditCard(args.id);
+        if (!before) throw new Error(`CARTÃO NÃO ENCONTRADO: ${args.id}`);
+        const updated = await this.finances.updateCreditCard(args.id, args);
+        description = `ATUALIZOU CARTÃO: ${updated.name} (FECHA DIA ${updated.closingDay}, VENCE DIA ${updated.dueDay})`;
+        snapshot = {
+          entity: 'CREDIT_CARD',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
+        data = updated;
+        break;
+      }
 
       // ACADEMIC
       case 'createProject': {
@@ -283,10 +402,32 @@ export class ChatToolDispatcher {
       }
       case 'updateProject': {
         const before = await this.academic.getProjectDetails(args.id);
-        const proj = await this.academic.updateProject(args.id, args);
+        if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
+        const proj = await this.academic.updateProject(args.id, {
+          title: args.title,
+          description: args.description,
+          finalDeliveryDate: args.finalDeliveryDate,
+          groupMembers: args.groupMembers,
+          links: args.links,
+          status: args.status,
+        });
         description = `ATUALIZOU PROJETO: ${proj.title}`;
         snapshot = { entity: 'ACADEMIC_PROJECT', operation: 'UPDATE', id: args.id, previousData: before };
         data = proj;
+        break;
+      }
+      case 'startProject': {
+        const before = await this.academic.getProjectDetails(args.id);
+        if (!before) throw new Error(`PROJETO NÃO ENCONTRADO: ${args.id}`);
+        await this.academic.startProject(args.id);
+        description = `INICIOU PROJETO: ${before.title}`;
+        snapshot = {
+          entity: 'ACADEMIC_PROJECT_STATUS',
+          operation: 'UPDATE',
+          id: args.id,
+          previousStatus: before.status,
+        };
+        data = { id: args.id, status: 'IN_PROGRESS' };
         break;
       }
       case 'completeProject': {
@@ -321,9 +462,24 @@ export class ChatToolDispatcher {
         const milestone = await this.academic.addMilestone(args.projectId, {
           title: args.title,
           dueDate: args.dueDate,
+          sortOrder: args.sortOrder,
         });
         description = `ADICIONOU MARCO: ${milestone.title} (${milestone.dueDate})`;
         snapshot = { entity: 'PROJECT_MILESTONE', operation: 'CREATE', id: milestone.id };
+        data = milestone;
+        break;
+      }
+      case 'updateMilestone': {
+        const before = await this.academic.getMilestoneById(args.id);
+        if (!before) throw new Error(`MARCO NÃO ENCONTRADO: ${args.id}`);
+        const milestone = await this.academic.updateMilestone(args.id, {
+          title: args.title,
+          dueDate: args.dueDate,
+          isCompleted: args.isCompleted,
+          sortOrder: args.sortOrder,
+        });
+        description = `ATUALIZOU MARCO: ${milestone.title}`;
+        snapshot = { entity: 'PROJECT_MILESTONE', operation: 'UPDATE', id: args.id, previousData: before };
         data = milestone;
         break;
       }
@@ -339,6 +495,28 @@ export class ChatToolDispatcher {
         data = milestone;
         break;
       }
+      case 'addProjectLink': {
+        const link = await this.academic.addProjectLink(args.projectId, {
+          label: args.label,
+          url: args.url,
+        });
+        description = `ADICIONOU LINK AO PROJETO: ${link.label} (${link.url})`;
+        snapshot = { entity: 'PROJECT_LINK', operation: 'CREATE', id: link.id };
+        data = link;
+        break;
+      }
+      case 'updateProjectLink': {
+        const before = await this.academic.getProjectLinkById(args.id);
+        if (!before) throw new Error(`LINK NÃO ENCONTRADO: ${args.id}`);
+        const link = await this.academic.updateProjectLink(args.id, {
+          label: args.label,
+          url: args.url,
+        });
+        description = `ATUALIZOU LINK DE PROJETO: ${link.label}`;
+        snapshot = { entity: 'PROJECT_LINK', operation: 'UPDATE', id: args.id, previousData: before };
+        data = link;
+        break;
+      }
 
       // SHOPPING
       case 'addWishlistItem': {
@@ -351,16 +529,67 @@ export class ChatToolDispatcher {
       case 'updateWishlistItem': {
         const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = await this.shopping.updateWishlistItem(args.id, args);
+        const item = await this.shopping.updateWishlistItem(args.id, {
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+        });
         description = `ATUALIZOU ITEM WISHLIST: ${item.name}`;
         snapshot = { entity: 'SHOPPING_ITEM', operation: 'UPDATE', id: args.id, previousData: before };
+        data = item;
+        break;
+      }
+      case 'addPurchasedItem': {
+        const item = await this.shopping.addPurchasedItem({
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+          purchasedAt: args.purchasedAt,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+          payment: args.payment,
+        });
+        description = `REGISTROU COMPRA EM TRÂNSITO: ${item.name} (${item.storeApp})`;
+        snapshot = {
+          entity: 'SHOPPING_PURCHASED_CREATE',
+          operation: 'CREATE',
+          id: item.id,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+        };
+        data = item;
+        break;
+      }
+      case 'updateInTransitItem': {
+        const sections = await this.shopping.listItemsBySection();
+        const before = sections.inTransit.find((i) => i.id === args.id);
+        const item = await this.shopping.updateInTransitItem(args.id, {
+          name: args.name,
+          priceCents: args.priceCents,
+          productUrl: args.productUrl,
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+        });
+        description = `ATUALIZOU ENTREGA EM TRÂNSITO: ${item.name} (${item.storeApp})`;
+        snapshot = {
+          entity: 'SHOPPING_IN_TRANSIT_ITEM',
+          operation: 'UPDATE',
+          id: args.id,
+          previousData: before,
+        };
         data = item;
         break;
       }
       case 'markPurchased': {
         const sections = await this.shopping.listItemsBySection();
         const before = sections.wishlist.find((i) => i.id === args.id);
-        const item = await this.shopping.markPurchased(args.id, args);
+        const item = await this.shopping.markPurchased(args.id, {
+          storeApp: args.storeApp,
+          estimatedDeliveryDate: args.estimatedDeliveryDate,
+          purchasedAt: args.purchasedAt,
+          alreadyLoggedInFinances: args.alreadyLoggedInFinances,
+          payment: args.payment,
+        });
         description = `COMPRA REALIZADA: ${item.name} (${item.storeApp})`;
         snapshot = {
           entity: 'SHOPPING_PURCHASED',
@@ -380,9 +609,16 @@ export class ChatToolDispatcher {
         break;
       }
       case 'revertDelivered': {
+        const sections = await this.shopping.listItemsBySection();
+        const before = sections.delivered.find((i) => i.id === args.id);
         const item = await this.shopping.revertDelivered(args.id);
         description = `REVERTEU PARA A CAMINHO: ${item.name}`;
-        snapshot = { entity: 'SHOPPING_REVERT_DELIVERED', operation: 'UPDATE', id: args.id };
+        snapshot = {
+          entity: 'SHOPPING_REVERT_DELIVERED',
+          operation: 'UPDATE',
+          id: args.id,
+          previousDeliveredAt: before?.deliveredAt ?? null,
+        };
         data = item;
         break;
       }
@@ -401,20 +637,26 @@ export class ChatToolDispatcher {
         throw new Error(`MUTATION NÃO IMPLEMENTADA: ${toolName}`);
     }
 
-    const actionId = crypto.randomUUID();
-    await this.chat.createPendingAction({
-      id: actionId,
-      threadId: context.threadId,
-      toolName,
-      argsJson: JSON.stringify(args),
-      status: 'CONFIRMED',
-      undoSnapshotJson: snapshot ? JSON.stringify(snapshot) : null,
-    });
+    const snapshotJson = snapshot ? JSON.stringify(snapshot) : null;
+    const actionRecord = context.draftActionId
+      ? await this.chat.completeDraft(context.draftActionId, {
+          argsJson: JSON.stringify(args),
+          status: 'CONFIRMED',
+          undoSnapshotJson: snapshotJson,
+        })
+      : await this.chat.createPendingAction({
+          id: crypto.randomUUID(),
+          threadId: context.threadId,
+          toolName,
+          argsJson: JSON.stringify(args),
+          status: 'CONFIRMED',
+          undoSnapshotJson: snapshotJson,
+        });
 
     return {
       toolName,
       status: 'CONFIRMED',
-      actionId,
+      actionId: actionRecord.id,
       description,
       isDestructive: false,
       data,
@@ -434,6 +676,7 @@ export class ChatToolDispatcher {
     }
 
     const args = JSON.parse(action.argsJson);
+    let nextUndoSnapshotJson: string | undefined;
 
     switch (action.toolName) {
       case 'deleteCalendarEvent':
@@ -448,11 +691,25 @@ export class ChatToolDispatcher {
       case 'deleteInstallmentPlan':
         await this.finances.deleteInstallmentPlan(args.id);
         break;
+      case 'deleteCreditCard':
+        await this.finances.deleteCreditCard(args.id);
+        if (action.undoSnapshotJson) {
+          nextUndoSnapshotJson = JSON.stringify({
+            entity: 'CREDIT_CARD',
+            operation: 'DELETE',
+            id: args.id,
+            previousData: JSON.parse(action.undoSnapshotJson),
+          });
+        }
+        break;
       case 'deleteProject':
         await this.academic.deleteProject(args.id);
         break;
       case 'deleteMilestone':
         await this.academic.deleteMilestone(args.id);
+        break;
+      case 'deleteProjectLink':
+        await this.academic.deleteProjectLink(args.id);
         break;
       case 'deleteWishlistItem':
         await this.shopping.deleteItem(args.id);
@@ -461,29 +718,48 @@ export class ChatToolDispatcher {
         throw new Error(`EXCLUSÃO NÃO RECONHECIDA: ${action.toolName}`);
     }
 
-    await this.chat.updatePendingActionStatus(actionId, 'CONFIRMED');
+    await this.chat.updatePendingActionStatus(actionId, 'CONFIRMED', nextUndoSnapshotJson);
     return { ok: true, message: 'ITEM EXCLUÍDO COM SUCESSO' };
   }
 
   // ------------------------------------------------------------
-  // Cancel pending action
+  // Cancel pending action (including active DRAFTING actions)
   // ------------------------------------------------------------
   async cancelPendingAction(actionId: string): Promise<{ ok: boolean; message: string }> {
     const action = await this.chat.getPendingAction(actionId);
     if (!action) {
       throw new Error(`AÇÃO NÃO ENCONTRADA: ${actionId}`);
     }
-    if (action.status !== 'PENDING_CONFIRMATION') {
+    if (action.status !== 'PENDING_CONFIRMATION' && action.status !== 'DRAFTING') {
       return { ok: false, message: `AÇÃO NÃO ESTÁ PENDENTE: ${action.status}` };
     }
 
     await this.chat.updatePendingActionStatus(actionId, 'CANCELLED');
-    return { ok: true, message: 'AÇÃO CANCELADA' };
+    return {
+      ok: true,
+      message: action.status === 'DRAFTING' ? 'RASCUNHO CANCELADO' : 'AÇÃO CANCELADA',
+    };
   }
 
   // ------------------------------------------------------------
   // Revert snapshot (UNDO ENGINE)
   // ------------------------------------------------------------
+  private async deleteFinancesByShoppingItemId(shoppingItemId: string): Promise<void> {
+    const txs = (await this.finances.listTransactions()).filter(
+      (t) => t.shoppingItemId === shoppingItemId,
+    );
+    for (const tx of txs) {
+      await this.finances.deleteTransaction(tx.id);
+    }
+
+    const plans = (await this.finances.listInstallmentPlans()).filter(
+      (p) => p.shoppingItemId === shoppingItemId,
+    );
+    for (const plan of plans) {
+      await this.finances.deleteInstallmentPlan(plan.id);
+    }
+  }
+
   async undoAction(actionId: string): Promise<{ ok: boolean; message: string }> {
     const action = await this.chat.getPendingAction(actionId);
     if (!action) {
@@ -546,6 +822,18 @@ export class ChatToolDispatcher {
       case 'INSTALLMENT_PLAN': {
         if (snapshot.operation === 'CREATE') {
           await this.finances.deleteInstallmentPlan(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.finances.updateInstallmentPlan(snapshot.id, snapshot.previousData);
+        }
+        break;
+      }
+      case 'CREDIT_CARD': {
+        if (snapshot.operation === 'CREATE') {
+          await this.finances.deleteCreditCard(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.finances.updateCreditCard(snapshot.id, snapshot.previousData);
+        } else if (snapshot.operation === 'DELETE' && snapshot.previousData) {
+          await this.finances.restoreCreditCard(snapshot.previousData);
         }
         break;
       }
@@ -553,13 +841,29 @@ export class ChatToolDispatcher {
         if (snapshot.operation === 'CREATE') {
           await this.academic.deleteProject(snapshot.id);
         } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
-          await this.academic.updateProject(snapshot.id, snapshot.previousData);
+          const p = snapshot.previousData;
+          await this.academic.updateProject(snapshot.id, {
+            title: p.title,
+            description: p.description,
+            finalDeliveryDate: p.finalDeliveryDate ?? null,
+            groupMembers: Array.isArray(p.groupMembersList)
+              ? p.groupMembersList
+              : typeof p.groupMembers === 'string'
+                ? JSON.parse(p.groupMembers)
+                : p.groupMembers,
+            links: Array.isArray(p.links)
+              ? p.links.map((l: { label: string; url: string }) => ({ label: l.label, url: l.url }))
+              : undefined,
+            status: p.status,
+          });
         }
         break;
       }
       case 'ACADEMIC_PROJECT_STATUS': {
         if (snapshot.previousStatus === 'COMPLETED') {
           await this.academic.completeProject(snapshot.id);
+        } else if (snapshot.previousStatus === 'PLANNED') {
+          await this.academic.updateProject(snapshot.id, { status: 'PLANNED' });
         } else {
           await this.academic.reopenProject(snapshot.id);
         }
@@ -568,11 +872,31 @@ export class ChatToolDispatcher {
       case 'PROJECT_MILESTONE': {
         if (snapshot.operation === 'CREATE') {
           await this.academic.deleteMilestone(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          const m = snapshot.previousData;
+          await this.academic.updateMilestone(snapshot.id, {
+            title: m.title,
+            dueDate: m.dueDate,
+            isCompleted: m.isCompleted,
+            sortOrder: m.sortOrder,
+          });
         }
         break;
       }
       case 'PROJECT_MILESTONE_STATUS': {
         await this.academic.toggleMilestone(snapshot.id);
+        break;
+      }
+      case 'PROJECT_LINK': {
+        if (snapshot.operation === 'CREATE') {
+          await this.academic.deleteProjectLink(snapshot.id);
+        } else if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          const l = snapshot.previousData;
+          await this.academic.updateProjectLink(snapshot.id, {
+            label: l.label,
+            url: l.url,
+          });
+        }
         break;
       }
       case 'SHOPPING_ITEM': {
@@ -583,19 +907,25 @@ export class ChatToolDispatcher {
         }
         break;
       }
+      case 'SHOPPING_IN_TRANSIT_ITEM': {
+        if (snapshot.operation === 'UPDATE' && snapshot.previousData) {
+          await this.shopping.updateInTransitItem(snapshot.id, snapshot.previousData);
+        }
+        break;
+      }
+      case 'SHOPPING_PURCHASED_CREATE': {
+        // Delete synced Finanças records BEFORE deleting the shopping item,
+        // because ON DELETE SET NULL clears `shopping_item_id` when the item is removed.
+        if (!snapshot.alreadyLoggedInFinances) {
+          await this.deleteFinancesByShoppingItemId(snapshot.id);
+        }
+        await this.shopping.deleteItem(snapshot.id);
+        break;
+      }
       case 'SHOPPING_PURCHASED': {
         await this.shopping.revertToWishlist(snapshot.id);
         if (!snapshot.alreadyLoggedInFinances) {
-          // Remove auto-generated finance transactions or installment plans
-          const tx = (await this.finances.listTransactions()).find(
-            (t) => t.shoppingItemId === snapshot.id,
-          );
-          if (tx) await this.finances.deleteTransaction(tx.id);
-
-          const plan = (await this.finances.listInstallmentPlans()).find(
-            (p) => p.shoppingItemId === snapshot.id,
-          );
-          if (plan) await this.finances.deleteInstallmentPlan(plan.id);
+          await this.deleteFinancesByShoppingItemId(snapshot.id);
         }
         break;
       }
@@ -604,7 +934,7 @@ export class ChatToolDispatcher {
         break;
       }
       case 'SHOPPING_REVERT_DELIVERED': {
-        await this.shopping.markDelivered(snapshot.id);
+        await this.shopping.markDelivered(snapshot.id, snapshot.previousDeliveredAt ?? undefined);
         break;
       }
       case 'SHOPPING_REVERT_WISHLIST': {

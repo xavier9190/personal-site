@@ -43,6 +43,14 @@ export class AcademicRepository {
     await this.db.insert(schema.projectLinks).values(record);
   }
 
+  async getLinkById(id: string): Promise<ProjectLinkRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.projectLinks)
+      .where(eq(schema.projectLinks.id, id));
+    return row;
+  }
+
   async getLinksByProjectId(projectId: string): Promise<ProjectLinkRecord[]> {
     return this.db
       .select()
@@ -52,6 +60,17 @@ export class AcademicRepository {
 
   async getAllLinks(): Promise<ProjectLinkRecord[]> {
     return this.db.select().from(schema.projectLinks);
+  }
+
+  async updateLink(id: string, record: ProjectLinkRecord): Promise<void> {
+    await this.db
+      .update(schema.projectLinks)
+      .set(record)
+      .where(eq(schema.projectLinks.id, id));
+  }
+
+  async deleteLink(id: string): Promise<void> {
+    await this.db.delete(schema.projectLinks).where(eq(schema.projectLinks.id, id));
   }
 
   async deleteLinksByProjectId(projectId: string): Promise<void> {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Bot,
   Check,
+  FileEdit,
   FileSpreadsheet,
   FileText,
   ImageIcon,
@@ -20,7 +21,9 @@ import {
   User,
   X,
 } from 'lucide-react';
+import type { PendingActionStatus } from '../schema';
 import type { ChatMessageRecord } from '../service';
+import type { DraftSummary } from '../tools/slots';
 import {
   cancelPendingActionAction,
   clearThreadMessagesAction,
@@ -35,19 +38,169 @@ import type { ChatAttachment } from '../ai/intent';
 export interface ChatConversationProps {
   initialThreadId: string;
   initialMessages: ChatMessageRecord[];
+  initialActionStatuses?: Record<string, ToolCallCardData['status']>;
 }
 
-interface ToolCallCardData {
+export interface ToolCallCardData {
   actionId?: string;
   toolName: string;
   description: string;
   isDestructive: boolean;
-  status: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | 'UNDONE' | 'READ_SUCCESS';
+  status: PendingActionStatus | 'READ_SUCCESS';
+  draftArgs?: Record<string, unknown>;
+  missingFields?: string[];
+  missingFieldLabels?: string[];
+  draftSummary?: DraftSummary;
+}
+
+export function extractToolCallsFromSsePayload(data: {
+  toolCalls?: ToolCallCardData[] | null;
+  toolCall?: ToolCallCardData | null;
+}): ToolCallCardData[] {
+  if (Array.isArray(data.toolCalls)) {
+    return data.toolCalls;
+  }
+  if (data.toolCall) {
+    return [data.toolCall];
+  }
+  return [];
+}
+
+export function StreamingToolCallsPreview({
+  toolCalls,
+}: {
+  toolCalls: ToolCallCardData[];
+}) {
+  if (toolCalls.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {toolCalls.map((tc, idx) => (
+        <div
+          key={tc.actionId || idx}
+          className={`rounded border border-dashed bg-[#121212] p-2 text-xs ${
+            tc.isDestructive
+              ? 'border-[#ffc9c9] text-[#ffc9c9]'
+              : 'border-[#ffec99] text-[#ffec99]'
+          }`}
+        >
+          {tc.isDestructive
+            ? 'AGUARDANDO CONFIRMAÇÃO:'
+            : tc.status === 'DRAFTING'
+            ? 'RASCUNHO EM ANDAMENTO:'
+            : 'PROCESSANDO:'}{' '}
+          {tc.description}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DraftToolCard({
+  tc,
+  effectiveStatus,
+  onCancel,
+}: {
+  tc: ToolCallCardData;
+  effectiveStatus: ToolCallCardData['status'];
+  onCancel: (actionId: string) => void;
+}) {
+  const isDrafting = effectiveStatus === 'DRAFTING';
+  const isCancelled = effectiveStatus === 'CANCELLED';
+
+  const collectedFields =
+    tc.draftSummary?.collectedFields ??
+    Object.entries(tc.draftArgs ?? {})
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => ({
+        key,
+        label: key.toUpperCase(),
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      }));
+
+  const missingLabels =
+    tc.draftSummary?.missingFields.map((f) => f.label) ??
+    tc.missingFieldLabels ??
+    (tc.missingFields ?? []).map((f) => f.toUpperCase());
+
+  const borderClass = isDrafting
+    ? 'border-2 border-dashed border-[#ffec99] text-[#f1f3f5]'
+    : isCancelled
+    ? 'border-2 border-[#495057] text-[#868e96]'
+    : 'border-2 border-[#b2f2bb] text-[#f1f3f5]';
+
+  return (
+    <div className={`rounded-lg bg-[#121212] p-2.5 text-xs sketch-shadow-sm ${borderClass}`}>
+      <div className="mb-1 flex items-center justify-between gap-2 font-bold">
+        <span
+          className={`flex items-center gap-1.5 ${
+            isDrafting
+              ? 'text-[#ffec99]'
+              : isCancelled
+              ? 'text-[#868e96]'
+              : 'text-[#b2f2bb]'
+          }`}
+        >
+          {isDrafting ? (
+            <FileEdit className="h-3.5 w-3.5 shrink-0" />
+          ) : isCancelled ? (
+            <X className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <Check className="h-3.5 w-3.5 shrink-0" />
+          )}
+          <span>
+            {isDrafting
+              ? 'RASCUNHO EM ANDAMENTO'
+              : isCancelled
+              ? 'RASCUNHO CANCELADO'
+              : 'RASCUNHO CONCLUÍDO'}
+          </span>
+        </span>
+        <span className="text-[10px] text-[#868e96]">{tc.toolName}</span>
+      </div>
+
+      <p className="font-bold text-[#f1f3f5]">
+        {tc.draftSummary?.actionLabel ?? tc.description}
+      </p>
+
+      {collectedFields.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {collectedFields.map((field) => (
+            <span
+              key={field.key}
+              className="rounded border border-[#495057] bg-[#1e1e1e] px-1.5 py-0.5 text-[10px] text-[#ced4da]"
+            >
+              <strong className="text-[#f1f3f5]">{field.label}:</strong> {field.value}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {isDrafting && missingLabels.length > 0 && (
+        <div className="mt-1.5 text-[11px] font-bold text-[#ffec99]">
+          FALTA INFORMAR: {missingLabels.join(', ')}
+        </div>
+      )}
+
+      {isDrafting && tc.actionId && (
+        <div className="mt-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => onCancel(tc.actionId!)}
+            className="rounded border border-[#f1f3f5] bg-[#1e1e1e] px-2.5 py-1 text-[11px] font-bold text-[#f1f3f5] hover:bg-[#2c2c2c] transition-colors sketch-shadow-sm"
+          >
+            CANCELAR
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ChatConversation({
   initialThreadId,
   initialMessages,
+  initialActionStatuses,
 }: ChatConversationProps) {
   const router = useRouter();
   const [threadId, setThreadId] = useState(initialThreadId);
@@ -67,7 +220,15 @@ export function ChatConversation({
   const recognitionRef = useRef<any>(null);
 
   // Dynamic card statuses (key: actionId, value: status)
-  const [actionStatuses, setActionStatuses] = useState<Record<string, ToolCallCardData['status']>>({});
+  const [actionStatuses, setActionStatuses] = useState<Record<string, ToolCallCardData['status']>>(
+    initialActionStatuses ?? {},
+  );
+
+  useEffect(() => {
+    if (initialThreadId === threadId && initialActionStatuses) {
+      setActionStatuses((prev) => ({ ...prev, ...initialActionStatuses }));
+    }
+  }, [initialActionStatuses, initialThreadId, threadId]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -283,15 +444,23 @@ export function ChatConversation({
             const data = JSON.parse(jsonStr);
             if (data.type === 'start') {
               if (data.threadId) setThreadId(data.threadId);
-              if (data.toolCall) {
-                collectedToolCalls = [data.toolCall];
-                setStreamingToolCalls(collectedToolCalls);
+              if (data.resolvedActionStatuses && typeof data.resolvedActionStatuses === 'object') {
+                setActionStatuses((prev) => ({ ...prev, ...data.resolvedActionStatuses }));
+              }
+              const incomingToolCalls = extractToolCallsFromSsePayload(data);
+              if (incomingToolCalls.length > 0) {
+                collectedToolCalls = incomingToolCalls;
+                setStreamingToolCalls(incomingToolCalls);
               }
             } else if (data.type === 'token') {
               accumulated += data.token;
               setStreamingText(accumulated);
             } else if (data.type === 'done') {
-              const toolCalls = data.toolCalls || collectedToolCalls;
+              if (data.resolvedActionStatuses && typeof data.resolvedActionStatuses === 'object') {
+                setActionStatuses((prev) => ({ ...prev, ...data.resolvedActionStatuses }));
+              }
+              const incomingDoneTools = extractToolCallsFromSsePayload(data);
+              const toolCalls = incomingDoneTools.length > 0 ? incomingDoneTools : collectedToolCalls;
               if (data.assistantMessage) {
                 setMessages((prev) => [...prev, data.assistantMessage]);
               } else {
@@ -358,31 +527,54 @@ export function ChatConversation({
   // -------------------------------------------------------------
   // Tool Action Card Handlers (Undo & Confirm/Cancel)
   // -------------------------------------------------------------
-  const handleUndo = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'UNDONE' }));
-    const res = await undoActionAction(actionId);
-    if (!res.ok) {
-      alert(`FALHA AO DESFAZER: ${res.error || 'ERRO DESCONHECIDO'}`);
+  const runActionStatusTransition = async (
+    actionId: string,
+    optimisticStatus: ToolCallCardData['status'],
+    execute: () => Promise<{ ok: boolean; error?: string }>,
+    failureLabel?: string,
+  ) => {
+    setActionStatuses((prev) => ({ ...prev, [actionId]: optimisticStatus }));
+    const res = await execute();
+    if (!res.ok && failureLabel) {
+      setActionStatuses((prev) => {
+        const next = { ...prev };
+        delete next[actionId];
+        return next;
+      });
+      alert(`${failureLabel}: ${res.error || 'ERRO DESCONHECIDO'}`);
     } else {
       router.refresh();
     }
   };
 
-  const handleConfirmDelete = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'CONFIRMED' }));
-    const res = await confirmPendingActionAction(actionId);
-    if (!res.ok) {
-      alert(`FALHA AO EXCLUIR: ${res.error || 'ERRO DESCONHECIDO'}`);
-    } else {
-      router.refresh();
-    }
-  };
+  const handleUndo = (actionId: string) =>
+    runActionStatusTransition(
+      actionId,
+      'UNDONE',
+      () => undoActionAction(actionId),
+      'FALHA AO DESFAZER',
+    );
 
-  const handleCancelDelete = async (actionId: string) => {
-    setActionStatuses((prev) => ({ ...prev, [actionId]: 'CANCELLED' }));
-    await cancelPendingActionAction(actionId);
-    router.refresh();
-  };
+  const handleConfirmDelete = (actionId: string) =>
+    runActionStatusTransition(
+      actionId,
+      'CONFIRMED',
+      () => confirmPendingActionAction(actionId),
+      'FALHA AO EXCLUIR',
+    );
+
+  const handleCancelDelete = (actionId: string) =>
+    runActionStatusTransition(actionId, 'CANCELLED', () =>
+      cancelPendingActionAction(actionId),
+    );
+
+  const handleCancelDraft = (actionId: string) =>
+    runActionStatusTransition(
+      actionId,
+      'CANCELLED',
+      () => cancelPendingActionAction(actionId),
+      'FALHA AO CANCELAR RASCUNHO',
+    );
 
   const handleNewConversation = async () => {
     const res = await createNewThreadAction();
@@ -615,6 +807,37 @@ export function ChatConversation({
                           );
                         }
 
+                        // Read / Query Card
+                        if (effectiveStatus === 'READ_SUCCESS') {
+                          return (
+                            <div
+                              key={tc.actionId || idx}
+                              className="flex items-center justify-between rounded-lg border-2 border-[#a5d8ff] bg-[#121212] p-2.5 text-xs text-[#f1f3f5] sketch-shadow-sm"
+                            >
+                              <div className="flex flex-col pr-2">
+                                <span className="font-bold text-[#a5d8ff]">
+                                  {tc.description}
+                                </span>
+                                <span className="text-[10px] text-[#868e96]">
+                                  CONSULTA CONCLUÍDA
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Draft Card (Multi-turn Slot-Filling)
+                        if (tc.status === 'DRAFTING' || effectiveStatus === 'DRAFTING') {
+                          return (
+                            <DraftToolCard
+                              key={tc.actionId || idx}
+                              tc={tc}
+                              effectiveStatus={effectiveStatus}
+                              onCancel={handleCancelDraft}
+                            />
+                          );
+                        }
+
                         // Mutation Card (Executed Immediately with [DESFAZER])
                         return (
                           <div
@@ -682,11 +905,7 @@ export function ChatConversation({
               )}
 
               {/* Streaming Tool Call Preview */}
-              {streamingToolCalls.length > 0 && (
-                <div className="mt-2 rounded border border-dashed border-[#ffec99] bg-[#121212] p-2 text-xs text-[#ffec99]">
-                  PROCESSANDO: {streamingToolCalls[0].description}
-                </div>
-              )}
+              <StreamingToolCallsPreview toolCalls={streamingToolCalls} />
             </div>
           </div>
         )}

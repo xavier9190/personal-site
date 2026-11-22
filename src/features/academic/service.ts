@@ -2,8 +2,10 @@ import type { AppDatabase } from '@/db';
 import { getDb } from '@/db';
 import {
   buildNewMilestoneRecord,
+  buildNewProjectLinkRecord,
   buildNewProjectRecord,
   buildUpdatedMilestoneRecord,
+  buildUpdatedProjectLinkRecord,
   buildUpdatedProjectRecord,
   mapProjectView,
 } from './builders';
@@ -13,10 +15,12 @@ import type {
   AcademicProjectView,
   CreateMilestoneInput,
   CreateProjectInput,
+  CreateProjectLinkInput,
   ProjectLinkRecord,
   ProjectMilestoneRecord,
   UpdateMilestoneInput,
   UpdateProjectInput,
+  UpdateProjectLinkInput,
 } from './types';
 
 export * from './types';
@@ -86,10 +90,16 @@ export class AcademicService {
     projectId: string,
     input: Omit<CreateMilestoneInput, 'projectId'>,
   ): Promise<ProjectMilestoneRecord> {
+    const project = await this.repo.getProjectById(projectId);
+    if (!project) throw new Error(`PROJETO NÃO ENCONTRADO: ${projectId}`);
     const record = buildNewMilestoneRecord(projectId, input);
     await this.repo.insertMilestone(record);
     await this.syncProjectStatusFromMilestones(projectId);
     return record;
+  }
+
+  async getMilestoneById(id: string): Promise<ProjectMilestoneRecord | null> {
+    return (await this.repo.getMilestoneById(id)) ?? null;
   }
 
   async updateMilestone(id: string, input: UpdateMilestoneInput): Promise<ProjectMilestoneRecord> {
@@ -117,6 +127,33 @@ export class AcademicService {
     if (!existing) return;
     await this.repo.deleteMilestone(id);
     await this.syncProjectStatusFromMilestones(existing.projectId);
+  }
+
+  async addProjectLink(
+    projectId: string,
+    input: Omit<CreateProjectLinkInput, 'projectId'>,
+  ): Promise<ProjectLinkRecord> {
+    const project = await this.repo.getProjectById(projectId);
+    if (!project) throw new Error(`PROJETO NÃO ENCONTRADO: ${projectId}`);
+    const record = buildNewProjectLinkRecord(projectId, input);
+    await this.repo.insertLink(record);
+    return record;
+  }
+
+  async getProjectLinkById(id: string): Promise<ProjectLinkRecord | null> {
+    return (await this.repo.getLinkById(id)) ?? null;
+  }
+
+  async updateProjectLink(id: string, input: UpdateProjectLinkInput): Promise<ProjectLinkRecord> {
+    const existing = await this.repo.getLinkById(id);
+    if (!existing) throw new Error(`LINK NÃO ENCONTRADO: ${id}`);
+    const updated = buildUpdatedProjectLinkRecord(existing, input);
+    await this.repo.updateLink(id, updated);
+    return updated;
+  }
+
+  async deleteProjectLink(id: string): Promise<void> {
+    await this.repo.deleteLink(id);
   }
 
   private async syncProjectStatusFromMilestones(projectId: string): Promise<void> {

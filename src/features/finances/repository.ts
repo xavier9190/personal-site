@@ -85,6 +85,21 @@ export class FinancesRepository {
     await this.db.insert(schema.creditCards).values(record);
   }
 
+  async getCreditCardById(id: string): Promise<CreditCardRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.creditCards)
+      .where(eq(schema.creditCards.id, id));
+    return row;
+  }
+
+  async updateCreditCard(id: string, record: CreditCardRecord): Promise<void> {
+    await this.db
+      .update(schema.creditCards)
+      .set(record)
+      .where(eq(schema.creditCards.id, id));
+  }
+
   async deleteCreditCard(id: string): Promise<void> {
     await this.db.delete(schema.creditCards).where(eq(schema.creditCards.id, id));
   }

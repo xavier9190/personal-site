@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPgliteTestDb } from '@/db/pglite-test';
 import { ChatService } from './service';
+import { cancelPendingAction } from './tools/dispatcher';
 
 async function setup() {
   const { db, close } = await createPgliteTestDb();
@@ -138,6 +139,92 @@ describe('ChatService (PostgreSQL persistence, threads, messages CRUD)', () => {
       await chat.deleteThread(thread.id);
       expect(await chat.getThread(thread.id)).toBeNull();
       expect(await chat.listMessages(thread.id)).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
+
+  it('persists DRAFTING pending actions with missingFieldsJson, enforces max 1 active draft per thread, and supports cancel/complete', async () => {
+    const { db, close } = await createPgliteTestDb();
+    try {
+      const chat = new ChatService(db);
+      const thread = await chat.createThread('DRAFTING TEST');
+      const otherThread = await chat.createThread('OUTRA CONVERSA');
+
+      expect(await chat.getActiveDraft(thread.id)).toBeNull();
+
+      // 1. Create active draft via upsertActiveDraft
+      const draft1 = await chat.upsertActiveDraft({
+        threadId: thread.id,
+        toolName: 'createCalendarEvent',
+        argsJson: JSON.stringify({ date: '2026-11-21', startTime: '15:00' }),
+        missingFieldsJson: JSON.stringify(['title']),
+      });
+
+      expect(draft1.status).toBe('DRAFTING');
+      expect(draft1.missingFieldsJson).toBe(JSON.stringify(['title']));
+      expect((await chat.getActiveDraft(thread.id))?.id).toBe(draft1.id);
+
+      // 2. Database partial unique index rejects inserting a second DRAFTING row on same thread
+      await expect(
+        chat.createPendingAction({
+          threadId: thread.id,
+          toolName: 'createTransaction',
+          argsJson: JSON.stringify({ description: 'UBER' }),
+          status: 'DRAFTING',
+          missingFieldsJson: JSON.stringify(['amountCents']),
+        }),
+      ).rejects.toThrow();
+
+      // Another thread can still have its own DRAFTING row
+      const otherDraft = await chat.upsertActiveDraft({
+        threadId: otherThread.id,
+        toolName: 'createTransaction',
+        argsJson: JSON.stringify({ description: 'CAFÉ' }),
+        missingFieldsJson: JSON.stringify(['amountCents']),
+      });
+      expect(otherDraft.status).toBe('DRAFTING');
+
+      // 3. Updating same tool draft updates args & missingFields in place
+      const updated = await chat.upsertActiveDraft({
+        threadId: thread.id,
+        toolName: 'createCalendarEvent',
+        argsJson: JSON.stringify({ date: '2026-11-22', startTime: '16:00' }),
+        missingFieldsJson: JSON.stringify(['title']),
+      });
+      expect(updated.id).toBe(draft1.id);
+      expect(JSON.parse(updated.argsJson).date).toBe('2026-11-22');
+
+      // 4. cancelPendingAction supports DRAFTING actions
+      const cancelRes = await cancelPendingAction(draft1.id, db);
+      expect(cancelRes.ok).toBe(true);
+      expect(await chat.getActiveDraft(thread.id)).toBeNull();
+      expect((await chat.getPendingAction(draft1.id))?.status).toBe('CANCELLED');
+
+      // 5. After cancellation, thread can open a new DRAFTING action and complete it to CONFIRMED
+      const draft2 = await chat.upsertActiveDraft({
+        threadId: thread.id,
+        toolName: 'addWishlistItem',
+        argsJson: JSON.stringify({ name: 'TECLADO' }),
+        missingFieldsJson: JSON.stringify(['priceCents']),
+      });
+      expect(draft2.id).not.toBe(draft1.id);
+
+      const completed = await chat.completeDraft(draft2.id, {
+        argsJson: JSON.stringify({ name: 'TECLADO', priceCents: 45000 }),
+        status: 'CONFIRMED',
+        undoSnapshotJson: JSON.stringify({ entity: 'SHOPPING_ITEM', operation: 'CREATE', id: 'item-1' }),
+      });
+      expect(completed.status).toBe('CONFIRMED');
+      expect(completed.missingFieldsJson).toBeNull();
+      expect(await chat.getActiveDraft(thread.id)).toBeNull();
+
+      // 6. getActionStatusMap returns hydrated statuses for reload
+      const statusMap = await chat.getActionStatusMap(thread.id);
+      expect(statusMap).toEqual({
+        [draft1.id]: 'CANCELLED',
+        [draft2.id]: 'CONFIRMED',
+      });
     } finally {
       await close();
     }
